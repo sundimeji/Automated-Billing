@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <!-- Richie's ISP Billing — single-file build. Upload this ONE file to GitHub Pages. -->
 
 <html lang="en">
@@ -182,6 +182,19 @@
         .login-modal .tab-switch button:hover:not(.active) { background: var(--light-bg); }
         .login-modal .signup-fields { display: none; }
         .login-modal .signup-fields.show { display: block; }
+        .login-modal .signup-status {
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            text-align: left;
+            line-height: 1.4;
+        }
+        .login-modal .signup-status.hidden { display: none; }
+        .login-modal .signup-status.error { background: #fdecea; color: #c0392b; border: 1px solid #f5c6cb; }
+        .login-modal .signup-status.success { background: #eafaf1; color: #1e8449; border: 1px solid #abebc6; }
+        .login-modal .signup-status.info { background: #ebf5fb; color: #21618c; border: 1px solid #aed6f1; }
+        .login-modal .btn-signup-submit:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
         .login-modal .login-fields { display: block; }
         .login-modal .login-fields.hide { display: none; }
 
@@ -455,6 +468,75 @@
             .table-container { margin-top: 10px; }
         }
 
+        /* Customer Portal */
+        body.portal-mode { overflow-x: hidden; background: linear-gradient(160deg, #f0f4fc 0%, #e8eef8 100%); min-height: 100vh; }
+        .portal-page { min-height: 100vh; display: flex; flex-direction: column; }
+        .portal-page.hidden { display: none !important; }
+        .portal-header {
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            color: white;
+            padding: 16px 0;
+            box-shadow: 0 4px 20px rgba(26, 26, 46, 0.15);
+        }
+        .portal-brand { color: white; font-weight: 800; text-decoration: none; font-size: 1.1rem; }
+        .portal-brand span { color: #7eb6ff; }
+        .portal-main { flex: 1; padding: 32px 16px 48px; max-width: 720px; }
+        .portal-card {
+            background: white;
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 10px 40px rgba(26, 26, 46, 0.08);
+            border: 1px solid rgba(58, 123, 213, 0.08);
+        }
+        .portal-card h2 { font-weight: 800; margin-bottom: 8px; }
+        .portal-card .portal-subtitle { color: #6c757d; margin-bottom: 24px; }
+        .portal-login-error {
+            background: rgba(231, 76, 60, 0.08);
+            border: 1px solid rgba(231, 76, 60, 0.2);
+            color: #c0392b;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+        .portal-demo-hint {
+            background: var(--light-bg);
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-top: 18px;
+            text-align: center;
+        }
+        .portal-demo-hint code { background: #e9ecef; padding: 2px 6px; border-radius: 4px; }
+        .portal-account-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+        .portal-account-header h2 { margin-bottom: 4px; }
+        .portal-tenant-label { color: #6c757d; font-size: 0.9rem; }
+        .portal-stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; }
+        .portal-stat {
+            background: var(--light-bg);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .portal-stat .label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: #6c757d; margin-bottom: 6px; }
+        .portal-stat .value { font-weight: 700; font-size: 1rem; }
+        .portal-expiry-summary { font-weight: 600; font-size: 0.95rem; }
+        .portal-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+        .portal-contact-box {
+            margin-top: 20px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: rgba(58, 123, 213, 0.06);
+            border: 1px solid rgba(58, 123, 213, 0.12);
+            font-size: 0.9rem;
+            color: #495057;
+        }
+        .portal-renew-notice.hidden { display: none !important; }
+        @media (max-width: 576px) {
+            .portal-stat-grid { grid-template-columns: 1fr; }
+            .portal-card { padding: 20px; }
+        }
+
     </style>
 </head>
 <body>
@@ -473,7 +555,8 @@
                 <a href="#" onclick="scrollToSection('screens', event)">Screens</a>
                 <a href="#" onclick="scrollToSection('pricing', event)">Pricing</a>
                 <a href="#" onclick="scrollToSection('contact', event)">Contact</a>
-                <a href="#" class="btn-login" onclick="openLoginModal(); return false;"><i class="bi bi-box-arrow-in-right"></i> Log In</a>
+                <a href="#" onclick="openCustomerPortal(); return false;">Customer Portal</a>
+                <a href="#" class="btn-login" onclick="openLoginModal(); return false;"><i class="bi bi-box-arrow-in-right"></i> Admin Log In</a>
                 <a href="#" class="btn-trial" onclick="openSignupModal(); return false;"><i class="bi bi-person-plus"></i> Start Free Trial</a>
             </div>
         </div>
@@ -780,11 +863,97 @@
                 <a href="#" onclick="scrollToSection('screens', event)">Screens</a>
                 <a href="#" onclick="scrollToSection('pricing', event)">Pricing</a>
                 <a href="#" onclick="scrollToSection('contact', event)">Contact</a>
-                <a href="#" onclick="openLoginModal(); return false;">Log In</a>
+                <a href="#" onclick="openCustomerPortal(); return false;">Customer Portal</a>
+                <a href="#" onclick="openLoginModal(); return false;">Admin Log In</a>
             </div>
             <p style="margin-top: 15px; font-size: 0.85rem;">&copy; 2026 Richie's ISP Billing. All rights reserved. Made with <i class="bi bi-heart-fill" style="color: #e74c3c;"></i> for ISPs in Africa.</p>
         </div>
     </footer>
+</div>
+
+<!-- ============================================================ -->
+<!-- CUSTOMER PORTAL                                               -->
+<!-- ============================================================ -->
+<div class="portal-page hidden" id="portalPage">
+    <header class="portal-header">
+        <div class="container d-flex justify-content-between align-items-center">
+            <a href="#" class="portal-brand" onclick="portalBackToSite(); return false;">Richie's <span>ISP Billing</span></a>
+            <button type="button" class="btn btn-sm btn-outline-light hidden" id="portalLogoutBtn" onclick="portalLogout()"><i class="bi bi-box-arrow-right"></i> Log out</button>
+        </div>
+    </header>
+    <main class="portal-main container">
+        <div id="portalLoginView" class="portal-card">
+            <h2><i class="bi bi-person-badge"></i> Customer Portal</h2>
+            <p class="portal-subtitle">Sign in to check your plan, expiry date, and account status.</p>
+            <div id="portalLoginError" class="portal-login-error hidden" role="alert"></div>
+            <form id="portalLoginForm" onsubmit="return handlePortalLoginSubmit(event)">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">ISP Code</label>
+                    <input type="text" class="form-control" id="portalTenantSlug" placeholder="e.g. demo-isp" autocomplete="organization" required />
+                    <small class="text-muted">Your ISP gave you this code (also shown in admin Settings).</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Username</label>
+                    <input type="text" class="form-control" id="portalUsername" placeholder="Your hotspot username" autocomplete="username" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Password</label>
+                    <input type="password" class="form-control" id="portalPassword" placeholder="••••••••" autocomplete="current-password" required />
+                </div>
+                <button type="submit" class="btn btn-primary w-100" id="portalLoginBtn"><i class="bi bi-box-arrow-in-right"></i> Sign In</button>
+            </form>
+            <div class="portal-demo-hint"><i class="bi bi-info-circle"></i> Offline demo: ISP code <code>demo-isp</code> · user <code>chidi123</code> · password <code>demo123</code></div>
+        </div>
+        <div id="portalDashboardView" class="portal-card hidden">
+            <div class="portal-account-header">
+                <div>
+                    <div class="portal-tenant-label" id="portalTenantName">Your ISP</div>
+                    <h2>Hello, <span id="portalWelcomeName">Customer</span></h2>
+                    <div class="mt-2" id="portalStatusBadge"></div>
+                </div>
+            </div>
+            <div class="portal-stat-grid">
+                <div class="portal-stat"><div class="label">Username</div><div class="value" id="portalAccountUsername">—</div></div>
+                <div class="portal-stat"><div class="label">Phone</div><div class="value" id="portalPhone">—</div></div>
+                <div class="portal-stat"><div class="label">Email</div><div class="value" id="portalEmail">—</div></div>
+                <div class="portal-stat"><div class="label">Plan</div><div class="value" id="portalPackageName">—</div></div>
+                <div class="portal-stat"><div class="label">Speed</div><div class="value" id="portalPackageSpeed">—</div></div>
+                <div class="portal-stat"><div class="label">Plan price</div><div class="value" id="portalPackagePrice">—</div></div>
+                <div class="portal-stat"><div class="label">Expires</div><div class="value" id="portalExpiresAt">—</div></div>
+                <div class="portal-stat"><div class="label">Time left</div><div class="value portal-expiry-summary" id="portalExpirySummary">—</div></div>
+            </div>
+            <div class="portal-actions">
+                <button type="button" class="btn btn-success" id="portalRenewBtn" onclick="handlePortalRenewClick()"><i class="bi bi-arrow-repeat"></i> Renew Plan</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="portalLogout()"><i class="bi bi-box-arrow-right"></i> Log out</button>
+            </div>
+            <div id="portalRenewInlineNotice" class="portal-renew-notice alert alert-info hidden mt-3" role="alert"></div>
+            <div class="portal-contact-box" id="portalContactInfo">Contact your ISP to renew or get support.</div>
+            <p class="text-muted small mt-3 mb-0">Online payment will be available when Paystack is configured. Until then, contact your ISP to renew.</p>
+        </div>
+    </main>
+</div>
+
+<!-- Portal renew modal -->
+<div class="modal fade" id="portalRenewModal" tabindex="-1" aria-labelledby="portalRenewModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="portalRenewModalTitle"><i class="bi bi-arrow-repeat"></i> Renew Plan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="portalRenewSummary" class="mb-3"></p>
+                <div class="alert alert-warning mb-3" id="portalRenewPaystackNote">
+                    <i class="bi bi-credit-card"></i> Online card payment is not available yet. Your ISP will renew your account after payment.
+                </div>
+                <p class="text-muted small mb-2">Contact your ISP to pay and renew:</p>
+                <div id="portalRenewContactActions" class="d-flex flex-wrap gap-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- ============================================================ -->
@@ -804,6 +973,7 @@
                     <button class="active" id="tabLogin" onclick="switchTab('login')">Log In</button>
                     <button id="tabSignup" onclick="switchTab('signup')">Sign Up</button>
                 </div>
+                <div id="authStatus" class="signup-status hidden" role="alert"></div>
                 <div class="login-fields" id="loginFields">
                     <form id="loginForm" onsubmit="return handleLoginSubmit(event)">
                         <div class="mb-3 text-start">
@@ -821,12 +991,13 @@
                 </div>
                 <div class="signup-fields" id="signupFields">
                     <form id="signupForm" onsubmit="return handleSignupSubmit(event)">
-                        <div class="mb-2 text-start"><label class="form-label fw-semibold small">Full Name</label><input type="text" class="form-control" id="signupName" placeholder="John Doe" value="Demo User" autocomplete="name" /></div>
-                        <div class="mb-2 text-start"><label class="form-label fw-semibold small">Email Address</label><input type="email" class="form-control" id="signupEmail" placeholder="you@example.com" value="demo@ispbilling.com" autocomplete="email" /></div>
-                        <div class="mb-2 text-start"><label class="form-label fw-semibold small">Phone Number</label><input type="tel" class="form-control" id="signupPhone" placeholder="+234 80 123 4567" value="+234 80 123 4567" autocomplete="tel" /></div>
-                        <div class="mb-2 text-start"><label class="form-label fw-semibold small">Company / ISP Name</label><input type="text" class="form-control" id="signupCompany" placeholder="Your ISP name" value="Demo ISP" autocomplete="organization" /></div>
-                        <div class="mb-2 text-start"><label class="form-label fw-semibold small">Password</label><input type="password" class="form-control" id="signupPassword" placeholder="Minimum 6 characters" value="demo123" autocomplete="new-password" /></div>
-                        <div class="mb-3 text-start"><label class="form-label fw-semibold small">Confirm Password</label><input type="password" class="form-control" id="signupConfirm" placeholder="Confirm your password" value="demo123" autocomplete="new-password" /></div>
+                        <div class="mb-2 text-start"><label class="form-label fw-semibold small">Full Name</label><input type="text" class="form-control" id="signupName" placeholder="John Doe" autocomplete="name" required /></div>
+                        <div class="mb-2 text-start"><label class="form-label fw-semibold small">Email Address</label><input type="email" class="form-control" id="signupEmail" placeholder="you@gmail.com" autocomplete="email" required /></div>
+                        <div class="mb-2 text-start"><label class="form-label fw-semibold small">Phone Number</label><input type="tel" class="form-control" id="signupPhone" placeholder="+234 80 123 4567" autocomplete="tel" required /></div>
+                        <div class="mb-2 text-start"><label class="form-label fw-semibold small">Company / ISP Name</label><input type="text" class="form-control" id="signupCompany" placeholder="Your ISP name" autocomplete="organization" required /></div>
+                        <div class="mb-2 text-start"><label class="form-label fw-semibold small">Password</label><input type="password" class="form-control" id="signupPassword" placeholder="Minimum 6 characters" autocomplete="new-password" minlength="6" required /></div>
+                        <div class="mb-3 text-start"><label class="form-label fw-semibold small">Confirm Password</label><input type="password" class="form-control" id="signupConfirm" placeholder="Confirm your password" autocomplete="new-password" minlength="6" required /></div>
+                        <div id="signupStatus" class="signup-status hidden" role="alert" aria-hidden="true"></div>
                         <button type="submit" class="btn-signup-submit"><i class="bi bi-person-plus"></i> Start 14-Day Free Trial</button>
                     </form>
                     <div class="demo-credentials" style="margin-top:15px;"><i class="bi bi-shield-check"></i> Free trial includes:<br />All features · No credit card required · Cancel anytime</div>
@@ -1008,7 +1179,7 @@
                     <div class="form-card">
                         <h5><i class="bi bi-gear"></i> Job Configuration</h5>
                         <div class="mb-3"><label class="form-label">Job Name</label><input type="text" class="form-control" value="Suspend Expired Subscribers" disabled /></div>
-                        <div class="mb-3"><label class="form-label">Schedule (Cron Expression)</label><input type="text" class="form-control" id="cronScheduleLabel" value="0 * * * * (every hour · demo runs every 8s)" disabled /></div>
+                        <div class="mb-3"><label class="form-label">Schedule (Cron Expression)</label><input type="text" class="form-control" id="cronScheduleLabel" value="0 * * * * (every hour on Supabase server)" disabled /></div>
                         <div class="mb-3"><label class="form-label">Last Run</label><input type="text" class="form-control" id="cronLastRun" value="Not run yet" disabled /></div>
                         <div class="mb-3"><label class="form-label">Next Run</label><input type="text" class="form-control" id="cronNextRun" value="Scheduled" disabled /></div>
                         <button type="button" class="btn btn-primary" onclick="runCronManually()"><i class="bi bi-play-fill"></i> Run Manually</button>
@@ -1017,6 +1188,7 @@
                 <div class="col-md-6">
                     <div class="form-card">
                         <h5><i class="bi bi-journal-text"></i> Execution Log</h5>
+                        <p class="text-muted small mb-2">Cron marks subscribers as <strong>Expired</strong> only when status is <strong>Active</strong> and the expiry date is in the past.</p>
                         <div class="log-container" id="cronLogContainer" style="height:300px;"></div>
                     </div>
                 </div>
@@ -1040,9 +1212,27 @@
                     <div class="form-card">
                         <h5><i class="bi bi-key"></i> API Keys</h5>
                         <p class="text-muted small">Saved in this browser via localStorage (demo only — do not store live production keys).</p>
-                        <div class="mb-3"><label class="form-label">Paystack Secret Key</label><input type="password" class="form-control" id="paystackSecretKey" placeholder="sk_test_..." autocomplete="off" /></div>
+                        <div class="mb-3"><label class="form-label">Paystack Secret Key</label><input type="password" class="form-control" id="paystackSecretKey" placeholder="sk_test_..." autocomplete="off" /><small class="text-muted" id="paystackSecretHint">Secret key is stored securely via Supabase Edge Functions.</small></div>
                         <div class="mb-3"><label class="form-label">Paystack Public Key</label><input type="text" class="form-control" id="paystackPublicKey" placeholder="pk_test_..." autocomplete="off" /></div>
                         <button type="button" class="btn btn-primary" onclick="saveApiKeys()"><i class="bi bi-check-circle"></i> Save API Keys</button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-card">
+                        <h5><i class="bi bi-person-badge"></i> Customer Portal</h5>
+                        <p class="text-muted small">Share this with subscribers so they can check plan status and expiry.</p>
+                        <div class="mb-3"><label class="form-label">ISP Code</label><div class="input-group"><input type="text" class="form-control" id="portalIspCode" readonly /><button type="button" class="btn btn-outline-secondary" onclick="copyIspCode()" title="Copy ISP code"><i class="bi bi-clipboard"></i></button></div></div>
+                        <div class="mb-3"><label class="form-label">Portal link</label><div class="input-group"><input type="text" class="form-control" id="portalLink" readonly /><button type="button" class="btn btn-outline-secondary" onclick="copyPortalLink()" title="Copy portal link"><i class="bi bi-clipboard"></i></button></div><small class="text-muted">Share this URL with customers. They can also use <strong>Customer Portal</strong> on your home page.</small></div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-card">
+                        <h5><i class="bi bi-shield-check"></i> Production checklist</h5>
+                        <p class="text-muted small mb-2">Quick checks before going live. Full steps: <code>PRODUCTION.md</code></p>
+                        <ul class="list-unstyled small mb-3" id="productionChecklist"></ul>
+                        <div class="alert alert-light border small mb-0" id="productionCronHint">
+                            <strong>Hourly cron:</strong> run <code>supabase functions deploy expire-subscribers</code>, set <code>CRON_SECRET</code>, then enable schedule in Supabase Dashboard → Edge Functions → expire-subscribers → Schedules.
+                        </div>
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -1095,7 +1285,10 @@
                 <div class="row g-2 mt-1"><div class="col-6"><label class="form-label">Username *</label><input type="text" class="form-control" id="subUsername" placeholder="johndoe" autocomplete="off" /></div><div class="col-6"><label class="form-label" id="subPasswordLabel">Password *</label><input type="password" class="form-control" id="subPassword" placeholder="••••••••" autocomplete="new-password" /></div></div>
                 <div class="mb-3 mt-2"><label class="form-label">Package *</label><select class="form-select" id="subPackage"><option value="">Select package...</option></select></div>
                 <div class="mb-3"><label class="form-label">Hotspot router *</label><select class="form-select" id="subRouter"><option value="">Select hotspot router...</option></select></div>
-                <div class="mb-0"><label class="form-label">Status</label><select class="form-select" id="subStatus"><option value="active">Active</option><option value="expired">Expired</option><option value="suspended">Suspended</option></select></div>
+                <div class="row g-2">
+                    <div class="col-6"><label class="form-label">Status</label><select class="form-select" id="subStatus"><option value="active">Active</option><option value="expired">Expired</option><option value="suspended">Suspended</option></select></div>
+                    <div class="col-6"><label class="form-label">Expires at</label><input type="datetime-local" class="form-control" id="subExpiresAt" /></div>
+                </div>
                 <p class="text-muted small mt-2 mb-0" id="subModalHint">New subscribers get an expiry date based on the selected package duration.</p>
             </div>
             <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" onclick="saveSubscriber()">Save Subscriber</button></div>
@@ -1227,7 +1420,1348 @@
 <!-- BOOTSTRAP JS & SCRIPTS                                        -->
 <!-- ============================================================ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+// Copy from supabase-config.example.js and paste your project values here.
+// Leave both empty to run in offline demo mode (localStorage only).
+window.SUPABASE_CONFIG = {
+    url: 'https://cockasbiiqtgnnjlvadg.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvY2thc2JpaXF0Z25uamx2YWRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNTI3NjAsImV4cCI6MjEwMTkyODc2MH0.p3wnhWxE4t_wTDPA3XL0bkQHY3Drull03uG4DXrGOxM'
+};
+
+(function () {
+    'use strict';
+
+    let client = null;
+    let pushTimer = null;
+    let activeTenantId = null;
+
+    function cfg() {
+        return window.SUPABASE_CONFIG || {};
+    }
+
+    function isEnabled() {
+        const c = cfg();
+        return Boolean(c.url && c.anonKey && typeof window.supabase !== 'undefined');
+    }
+
+    function getClient() {
+        if (!isEnabled()) return null;
+        if (!client) {
+            client = window.supabase.createClient(cfg().url, cfg().anonKey);
+        }
+        return client;
+    }
+
+    function slugify(text) {
+        return String(text || 'isp')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 48) || 'isp';
+    }
+
+    function randomId(prefix) {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return prefix + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+        }
+        return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+
+    function defaultPackages(tenantId) {
+        return [
+            { id: 'p1', tenant_id: tenantId, name: 'Basic', speed_mbps: 10, duration_days: 30, price: 3000, is_active: true, description: 'Perfect for light browsing' },
+            { id: 'p2', tenant_id: tenantId, name: 'Standard', speed_mbps: 25, duration_days: 30, price: 5000, is_active: true, description: 'Great for streaming' },
+            { id: 'p3', tenant_id: tenantId, name: 'Premium', speed_mbps: 50, duration_days: 30, price: 7500, is_active: true, description: 'For heavy users' },
+            { id: 'p4', tenant_id: tenantId, name: 'Enterprise', speed_mbps: 100, duration_days: 30, price: 12500, is_active: true, description: 'Business grade' }
+        ];
+    }
+
+    function defaultRouters(tenantId) {
+        return [
+            { id: 'r1', tenant_id: tenantId, name: 'Main Hotspot', type: 'mikrotik', host: '192.168.88.1', status: 'online', active_users: 0, last_seen: new Date().toISOString(), config_status: 'pending', config: { api_port: 8728, hotspot_ssid: 'ISP-Main', auto_sync_subscribers: true } }
+        ];
+    }
+
+    function mapPackageRow(row) {
+        return {
+            id: row.id,
+            tenant_id: row.tenant_id,
+            name: row.name,
+            speed_mbps: row.speed_mbps,
+            duration_days: row.duration_days,
+            price: Number(row.price),
+            is_active: row.is_active,
+            description: row.description || ''
+        };
+    }
+
+    function mapRouterRow(row) {
+        return {
+            id: row.id,
+            tenant_id: row.tenant_id,
+            name: row.name,
+            type: row.type,
+            host: row.host,
+            status: row.status,
+            active_users: row.active_users || 0,
+            last_seen: row.last_seen,
+            config_status: row.config_status,
+            config: row.config && typeof row.config === 'object' ? row.config : {}
+        };
+    }
+
+    function mapSubscriberRow(row) {
+        return {
+            id: row.id,
+            tenant_id: row.tenant_id,
+            package_id: row.package_id,
+            router_id: row.router_id,
+            full_name: row.full_name,
+            email: row.email || '',
+            phone: row.phone || '',
+            username: row.username,
+            password_hash: row.password_hash || 'hashed',
+            status: row.status,
+            expires_at: row.expires_at,
+            created_at: row.created_at
+        };
+    }
+
+    function mapTransactionRow(row) {
+        return {
+            id: row.id,
+            subscriber_id: row.subscriber_id,
+            subscriber_name: row.subscriber_name,
+            package_id: row.package_id,
+            package_name: row.package_name,
+            amount: Number(row.amount),
+            method: row.method,
+            status: row.status,
+            date: row.date
+        };
+    }
+
+    function getSignupMeta(user, fallbackEmail) {
+        const meta = (user && user.user_metadata) || {};
+        const email = user?.email || fallbackEmail || meta.email || '';
+        return {
+            name: meta.full_name || meta.name || (email ? email.split('@')[0] : 'Admin'),
+            company: meta.company || meta.tenant_name || 'My ISP',
+            phone: meta.phone || '',
+            email: email
+        };
+    }
+
+    async function provisionNewTenant(userId, { name, email, phone, company }) {
+        const sb = getClient();
+        if (!sb) return { ok: false, error: 'Supabase is not configured' };
+
+        const existing = await fetchProfile(userId);
+        if (existing) {
+            activeTenantId = existing.tenant_id;
+            const tenant = await fetchTenant(existing.tenant_id);
+            return {
+                ok: true,
+                tenantId: existing.tenant_id,
+                session: {
+                    userName: existing.full_name || name || email,
+                    tenantName: tenant?.name || company,
+                    tenantId: existing.tenant_id,
+                    email
+                }
+            };
+        }
+
+        const tenantId = randomId('t');
+        const tenant = {
+            id: tenantId,
+            name: company,
+            slug: slugify(company),
+            email: email,
+            phone: phone,
+            is_active: true
+        };
+
+        const { error: tenantError } = await sb.from('tenants').insert(tenant);
+        if (tenantError) return { ok: false, error: tenantError.message };
+
+        const profile = {
+            id: userId,
+            tenant_id: tenantId,
+            full_name: name,
+            role: 'admin'
+        };
+        const { error: profileError } = await sb.from('profiles').insert(profile);
+        if (profileError) return { ok: false, error: profileError.message };
+
+        const packages = defaultPackages(tenantId);
+        const routers = defaultRouters(tenantId);
+        const { error: packagesError } = await sb.from('packages').insert(packages);
+        if (packagesError) return { ok: false, error: packagesError.message };
+
+        const { error: routersError } = await sb.from('routers').insert(routers.map(r => ({ ...r, config: r.config })));
+        if (routersError) return { ok: false, error: routersError.message };
+
+        const { error: settingsError } = await sb.from('tenant_settings').insert({
+            tenant_id: tenantId,
+            config: { currency: 'NGN', currencySymbol: '\u20A6', currencyName: 'Nigerian Naira' },
+            meta: {
+                subscriberIdCounter: 1,
+                packageIdCounter: 5,
+                transactionIdCounter: 1,
+                routerIdCounter: 2,
+                isCronRunning: true,
+                cronRunCount: 0
+            }
+        });
+        if (settingsError) return { ok: false, error: settingsError.message };
+
+        activeTenantId = tenantId;
+        return {
+            ok: true,
+            tenantId,
+            session: {
+                userName: name,
+                tenantName: company,
+                tenantId,
+                email
+            }
+        };
+    }
+
+    async function ensureUserProvisioned(user) {
+        if (!user?.id) return { ok: false, error: 'No authenticated user' };
+
+        const profile = await fetchProfile(user.id);
+        if (profile) {
+            activeTenantId = profile.tenant_id;
+            const tenant = await fetchTenant(profile.tenant_id);
+            return {
+                ok: true,
+                tenantId: profile.tenant_id,
+                session: {
+                    userName: profile.full_name || user.email,
+                    tenantName: tenant?.name || 'ISP',
+                    tenantId: profile.tenant_id,
+                    email: user.email
+                }
+            };
+        }
+
+        const meta = getSignupMeta(user);
+        return provisionNewTenant(user.id, meta);
+    }
+
+    function formatAuthError(error) {
+        if (!error) return 'Authentication failed';
+        const message = error.message || String(error);
+        if (/email not confirmed/i.test(message)) {
+            return 'Please confirm your email first, then sign in.';
+        }
+        if (/invalid login credentials/i.test(message)) {
+            return 'Invalid email or password.';
+        }
+        if (/rate limit|too many requests/i.test(message)) {
+            return 'Email limit reached. Wait a few minutes and try again, or turn off Confirm email in Supabase while testing.';
+        }
+        if (/already registered|already exists|user already registered/i.test(message)) {
+            return 'This email is already registered. Try logging in instead.';
+        }
+        if (/invalid email|email address.*invalid/i.test(message)) {
+            return 'Use a real email address (e.g. Gmail, Yahoo). Test domains like example.com are blocked.';
+        }
+        if (/signups? are disabled|signup is disabled/i.test(message)) {
+            return 'Email signups are disabled in Supabase. Enable them under Authentication → Providers → Email, and turn on Allow new users to sign up under Authentication → Settings.';
+        }
+        return message;
+    }
+
+    function getEmailRedirectTo() {
+        try {
+            return window.location.href.split('#')[0].split('?')[0];
+        } catch (e) {
+            return undefined;
+        }
+    }
+
+    async function signIn(email, password) {
+        const sb = getClient();
+        if (!sb) return { ok: false, error: 'Supabase is not configured' };
+
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) return { ok: false, error: formatAuthError(error) };
+
+        const provisioned = await ensureUserProvisioned(data.user);
+        if (!provisioned.ok) return { ok: false, error: provisioned.error || 'Could not set up your account' };
+
+        return {
+            ok: true,
+            tenantId: provisioned.tenantId,
+            session: provisioned.session
+        };
+    }
+
+    async function signUp({ name, email, password, phone, company }) {
+        const sb = getClient();
+        if (!sb) return { ok: false, error: 'Supabase is not configured' };
+
+        const redirectTo = getEmailRedirectTo();
+        const signUpOptions = {
+            data: {
+                full_name: name,
+                company: company,
+                phone: phone
+            }
+        };
+        if (redirectTo) signUpOptions.emailRedirectTo = redirectTo;
+
+        const { data: authData, error: authError } = await sb.auth.signUp({
+            email,
+            password,
+            options: signUpOptions
+        });
+        if (authError) return { ok: false, error: formatAuthError(authError) };
+        if (!authData.user) return { ok: false, error: 'Signup failed — no user returned' };
+
+        const identities = authData.user.identities || [];
+        if (identities.length === 0) {
+            return {
+                ok: false,
+                error: 'This email may already be registered. Try logging in, or check your inbox for a confirmation link.'
+            };
+        }
+
+        if (!authData.session) {
+            return {
+                ok: true,
+                needsEmailConfirmation: true,
+                email
+            };
+        }
+
+        const provisioned = await provisionNewTenant(authData.user.id, { name, email, phone, company });
+        if (!provisioned.ok) return { ok: false, error: provisioned.error || 'Could not create your ISP account' };
+
+        return {
+            ok: true,
+            tenantId: provisioned.tenantId,
+            session: provisioned.session
+        };
+    }
+
+    async function signOut() {
+        const sb = getClient();
+        activeTenantId = null;
+        if (!sb) return;
+        await sb.auth.signOut();
+    }
+
+    async function fetchProfile(userId) {
+        const sb = getClient();
+        if (!sb) return null;
+        const { data, error } = await sb.from('profiles').select('*').eq('id', userId).maybeSingle();
+        if (error) throw error;
+        return data;
+    }
+
+    async function fetchTenant(tenantId) {
+        const sb = getClient();
+        if (!sb) return null;
+        const { data, error } = await sb.from('tenants').select('*').eq('id', tenantId).maybeSingle();
+        if (error) throw error;
+        return data;
+    }
+
+    async function tryRestoreSession() {
+        const sb = getClient();
+        if (!sb) return null;
+
+        const { data, error } = await sb.auth.getSession();
+        if (error || !data.session?.user) return null;
+
+        const provisioned = await ensureUserProvisioned(data.session.user);
+        if (!provisioned.ok) return null;
+
+        return {
+            tenantId: provisioned.tenantId,
+            session: provisioned.session
+        };
+    }
+
+    async function hydrateAppFromRemote(tenantId, appDataRef, configRef) {
+        const sb = getClient();
+        if (!sb) return false;
+
+        activeTenantId = tenantId;
+
+        const [tenantRes, packagesRes, routersRes, subscribersRes, transactionsRes, settingsRes] = await Promise.all([
+            sb.from('tenants').select('*').eq('id', tenantId).maybeSingle(),
+            sb.from('packages').select('*').eq('tenant_id', tenantId),
+            sb.from('routers').select('*').eq('tenant_id', tenantId),
+            sb.from('subscribers').select('*').eq('tenant_id', tenantId),
+            sb.from('transactions').select('*').eq('tenant_id', tenantId),
+            sb.from('tenant_settings').select('*').eq('tenant_id', tenantId).maybeSingle()
+        ]);
+
+        if (tenantRes.error) throw tenantRes.error;
+        if (packagesRes.error) throw packagesRes.error;
+        if (routersRes.error) throw routersRes.error;
+        if (subscribersRes.error) throw subscribersRes.error;
+        if (transactionsRes.error) throw transactionsRes.error;
+        if (settingsRes.error) throw settingsRes.error;
+
+        const tenant = tenantRes.data;
+        appDataRef.tenants = tenant ? [{
+            id: tenant.id,
+            name: tenant.name,
+            slug: tenant.slug,
+            email: tenant.email,
+            phone: tenant.phone,
+            is_active: tenant.is_active
+        }] : [];
+
+        appDataRef.packages = (packagesRes.data || []).map(mapPackageRow);
+        appDataRef.routers = (routersRes.data || []).map(mapRouterRow);
+        appDataRef.subscribers = (subscribersRes.data || []).map(mapSubscriberRow);
+        appDataRef.transactions = (transactionsRes.data || []).map(mapTransactionRow);
+
+        const settings = settingsRes.data;
+        if (settings?.config && configRef) {
+            Object.assign(configRef, settings.config);
+        }
+        if (settings?.meta) {
+            const meta = settings.meta;
+            if (typeof meta.subscriberIdCounter === 'number') appDataRef.subscriberIdCounter = meta.subscriberIdCounter;
+            if (typeof meta.packageIdCounter === 'number') appDataRef.packageIdCounter = meta.packageIdCounter;
+            if (typeof meta.transactionIdCounter === 'number') appDataRef.transactionIdCounter = meta.transactionIdCounter;
+            if (typeof meta.routerIdCounter === 'number') appDataRef.routerIdCounter = meta.routerIdCounter;
+            if (typeof meta.isCronRunning === 'boolean') appDataRef.isCronRunning = meta.isCronRunning;
+            if (typeof meta.cronRunCount === 'number') appDataRef.cronRunCount = meta.cronRunCount;
+            if (Array.isArray(meta.cronLogs) && meta.cronLogs.length) appDataRef.cronLogs = meta.cronLogs;
+            if (meta.cronLastRunAt !== undefined) appDataRef.cronLastRunAt = meta.cronLastRunAt;
+            if (Array.isArray(meta.cronLastAffected) && meta.cronLastAffected.length) {
+                appDataRef.cronLastAffected = meta.cronLastAffected;
+            }
+        }
+
+        return true;
+    }
+
+    async function reloadSubscribers(tenantId, appDataRef) {
+        const sb = getClient();
+        if (!sb || !tenantId) return false;
+        const { data, error } = await sb.from('subscribers').select('*').eq('tenant_id', tenantId);
+        if (error) throw error;
+        appDataRef.subscribers = (data || []).map(mapSubscriberRow);
+        return true;
+    }
+
+    async function pushAppState(appDataSnapshot, configSnapshot) {
+        const sb = getClient();
+        if (!sb || !activeTenantId) return;
+
+        const tenantId = activeTenantId;
+        const tenant = (appDataSnapshot.tenants || [])[0];
+        if (tenant) {
+            await sb.from('tenants').upsert({
+                id: tenantId,
+                name: tenant.name,
+                slug: tenant.slug || slugify(tenant.name),
+                email: tenant.email,
+                phone: tenant.phone,
+                is_active: tenant.is_active !== false
+            });
+        }
+
+        const packages = (appDataSnapshot.packages || []).filter(p => p.tenant_id === tenantId).map(p => ({
+            id: p.id,
+            tenant_id: tenantId,
+            name: p.name,
+            speed_mbps: p.speed_mbps,
+            duration_days: p.duration_days,
+            price: p.price,
+            is_active: p.is_active !== false,
+            description: p.description || ''
+        }));
+
+        const routers = (appDataSnapshot.routers || []).filter(r => r.tenant_id === tenantId).map(r => ({
+            id: r.id,
+            tenant_id: tenantId,
+            name: r.name,
+            type: r.type,
+            host: r.host,
+            status: r.status,
+            active_users: r.active_users || 0,
+            last_seen: r.last_seen,
+            config_status: r.config_status || 'pending',
+            config: r.config || {}
+        }));
+
+        const subscribers = (appDataSnapshot.subscribers || []).filter(s => s.tenant_id === tenantId).map(s => ({
+            id: s.id,
+            tenant_id: tenantId,
+            package_id: s.package_id,
+            router_id: s.router_id,
+            full_name: s.full_name,
+            email: s.email || '',
+            phone: s.phone || '',
+            username: s.username,
+            password_hash: s.password_hash || 'hashed',
+            status: s.status,
+            expires_at: s.expires_at,
+            created_at: s.created_at || new Date().toISOString()
+        }));
+
+        const transactions = (appDataSnapshot.transactions || []).map(t => ({
+            id: t.id,
+            tenant_id: tenantId,
+            subscriber_id: t.subscriber_id,
+            subscriber_name: t.subscriber_name,
+            package_id: t.package_id,
+            package_name: t.package_name,
+            amount: t.amount,
+            method: t.method,
+            status: t.status,
+            date: t.date || new Date().toISOString()
+        }));
+
+        const { data: existingSettings } = await sb
+            .from('tenant_settings')
+            .select('meta, config')
+            .eq('tenant_id', tenantId)
+            .maybeSingle();
+        const existingMeta = (existingSettings?.meta && typeof existingSettings.meta === 'object')
+            ? existingSettings.meta
+            : {};
+
+        const meta = {
+            subscriberIdCounter: appDataSnapshot.subscriberIdCounter,
+            packageIdCounter: appDataSnapshot.packageIdCounter,
+            transactionIdCounter: appDataSnapshot.transactionIdCounter,
+            routerIdCounter: appDataSnapshot.routerIdCounter,
+            isCronRunning: appDataSnapshot.isCronRunning,
+            cronRunCount: existingMeta.cronRunCount ?? appDataSnapshot.cronRunCount,
+            cronLogs: Array.isArray(existingMeta.cronLogs) && existingMeta.cronLogs.length
+                ? existingMeta.cronLogs
+                : (appDataSnapshot.cronLogs || []),
+            cronLastRunAt: existingMeta.cronLastRunAt ?? appDataSnapshot.cronLastRunAt,
+            cronLastAffected: Array.isArray(existingMeta.cronLastAffected) && existingMeta.cronLastAffected.length
+                ? existingMeta.cronLastAffected
+                : (appDataSnapshot.cronLastAffected || [])
+        };
+
+        if (packages.length) await sb.from('packages').upsert(packages);
+        if (routers.length) await sb.from('routers').upsert(routers);
+        if (subscribers.length) await sb.from('subscribers').upsert(subscribers);
+        if (transactions.length) await sb.from('transactions').upsert(transactions);
+
+        await sb.from('tenant_settings').upsert({
+            tenant_id: tenantId,
+            config: configSnapshot || existingSettings?.config || {},
+            meta,
+            updated_at: new Date().toISOString()
+        });
+    }
+
+    function schedulePushAppState(appDataSnapshot, configSnapshot) {
+        if (!isEnabled() || !activeTenantId) return;
+        if (pushTimer) clearTimeout(pushTimer);
+        pushTimer = setTimeout(function () {
+            pushAppState(appDataSnapshot, configSnapshot).catch(function (err) {
+                console.warn('Supabase sync failed', err);
+            });
+        }, 800);
+    }
+
+    function setActiveTenantId(tenantId) {
+        activeTenantId = tenantId;
+    }
+
+    function getActiveTenantId() {
+        return activeTenantId;
+    }
+
+    async function deleteRow(table, id) {
+        const sb = getClient();
+        if (!sb || !id) return;
+        const { error } = await sb.from(table).delete().eq('id', id);
+        if (error) console.warn('Supabase delete failed', table, id, error);
+    }
+
+    window.SupabaseAPI = {
+        isEnabled,
+        getClient,
+        signIn,
+        signUp,
+        signOut,
+        tryRestoreSession,
+        hydrateAppFromRemote,
+        reloadSubscribers,
+        pushAppState,
+        schedulePushAppState,
+        setActiveTenantId,
+        getActiveTenantId,
+        deleteRow
+    };
+})();
+
+(function () {
+    'use strict';
+
+    function isReady(config) {
+        return Boolean(
+            window.SupabaseAPI &&
+            window.SupabaseAPI.isEnabled() &&
+            config &&
+            config.paystackPublicKey &&
+            config.paystackPublicKey.startsWith('pk_')
+        );
+    }
+
+    function hasPaystackPopup() {
+        return typeof window.PaystackPop !== 'undefined' && window.PaystackPop.setup;
+    }
+
+    async function invokeFunction(name, body) {
+        const sb = window.SupabaseAPI.getClient();
+        if (!sb) throw new Error('Supabase is not configured');
+
+        const { data, error } = await sb.functions.invoke(name, { body: body || {} });
+        if (error) throw error;
+        if (data && data.ok === false) {
+            throw new Error(data.error || 'Paystack request failed');
+        }
+        return data;
+    }
+
+    async function saveSecretKey(secretKey) {
+        return invokeFunction('paystack-save-secret', { secretKey: secretKey });
+    }
+
+    async function initializePayment(payload) {
+        return invokeFunction('paystack-initialize', payload);
+    }
+
+    async function verifyPayment(reference, transactionId) {
+        return invokeFunction('paystack-verify', { reference: reference, transactionId: transactionId });
+    }
+
+    function loadPaystackScript() {
+        if (hasPaystackPopup()) return Promise.resolve();
+        return new Promise(function (resolve, reject) {
+            const existing = document.querySelector('script[data-paystack-inline="true"]');
+            if (existing) {
+                existing.addEventListener('load', function () { resolve(); });
+                existing.addEventListener('error', reject);
+                if (hasPaystackPopup()) resolve();
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = 'https://js.paystack.co/v1/inline.js';
+            script.async = true;
+            script.dataset.paystackInline = 'true';
+            script.onload = function () { resolve(); };
+            script.onerror = function () { reject(new Error('Could not load Paystack checkout script')); };
+            document.head.appendChild(script);
+        });
+    }
+
+    async function openCheckout(options) {
+        await loadPaystackScript();
+        if (!hasPaystackPopup()) {
+            throw new Error('Paystack checkout is unavailable');
+        }
+
+        return new Promise(function (resolve, reject) {
+            const handler = window.PaystackPop.setup({
+                key: options.publicKey,
+                email: options.email,
+                amount: Math.round(Number(options.amount) * 100),
+                currency: options.currency || 'NGN',
+                ref: options.reference,
+                metadata: options.metadata || {},
+                onClose: function () {
+                    reject(new Error('Payment window closed'));
+                },
+                callback: function (response) {
+                    resolve(response);
+                }
+            });
+            handler.openIframe();
+        });
+    }
+
+    window.PaystackAPI = {
+        isReady: isReady,
+        saveSecretKey: saveSecretKey,
+        initializePayment: initializePayment,
+        verifyPayment: verifyPayment,
+        openCheckout: openCheckout,
+        loadPaystackScript: loadPaystackScript
+    };
+})();
+
+(function () {
+    'use strict';
+
+    function parseInvokePayload(data) {
+        if (!data) return null;
+        if (typeof data === 'string') {
+            try {
+                return JSON.parse(data);
+            } catch (err) {
+                return null;
+            }
+        }
+        return data;
+    }
+
+    function parseInvokeError(error) {
+        if (!error) return 'Edge function call failed';
+        const message = error.message || String(error);
+        if (/Failed to send a request to the Edge Function|Function not found|404/i.test(message)) {
+            return 'expire-subscribers is not deployed. Run: supabase functions deploy expire-subscribers';
+        }
+        if (/cron_runs|relation.*does not exist/i.test(message)) {
+            return 'Missing cron_runs table. Run supabase/cron.sql in the SQL Editor.';
+        }
+        return message;
+    }
+
+    async function invokeExpiryJob(tenantId) {
+        const sb = window.SupabaseAPI && window.SupabaseAPI.getClient();
+        if (!sb) throw new Error('Supabase is not configured');
+
+        if (tenantId && window.SupabaseAPI.setActiveTenantId) {
+            window.SupabaseAPI.setActiveTenantId(tenantId);
+        }
+
+        const { data, error } = await sb.functions.invoke('expire-subscribers', { body: {} });
+        if (error) throw new Error(parseInvokeError(error));
+
+        const payload = parseInvokePayload(data);
+        if (!payload) throw new Error('Empty response from expire-subscribers');
+        if (payload.ok === false) throw new Error(payload.error || 'Expiry cron failed');
+        return payload;
+    }
+
+    async function fetchRecentRuns(tenantId, limit) {
+        const sb = window.SupabaseAPI && window.SupabaseAPI.getClient();
+        if (!sb || !tenantId) return [];
+
+        const { data, error } = await sb
+            .from('cron_runs')
+            .select('*')
+            .eq('tenant_id', tenantId)
+            .order('ran_at', { ascending: false })
+            .limit(limit || 10);
+
+        if (error) throw error;
+        return data || [];
+    }
+
+    async function syncCronState(appDataRef, tenantId) {
+        const sb = window.SupabaseAPI && window.SupabaseAPI.getClient();
+        if (!sb || !tenantId) return false;
+
+        const { data: settings, error: settingsError } = await sb
+            .from('tenant_settings')
+            .select('meta')
+            .eq('tenant_id', tenantId)
+            .maybeSingle();
+        if (settingsError) throw settingsError;
+
+        const meta = settings?.meta;
+        if (meta && typeof meta === 'object') {
+            if (typeof meta.cronRunCount === 'number') appDataRef.cronRunCount = meta.cronRunCount;
+            if (Array.isArray(meta.cronLogs) && meta.cronLogs.length) appDataRef.cronLogs = meta.cronLogs;
+            if (meta.cronLastRunAt !== undefined) appDataRef.cronLastRunAt = meta.cronLastRunAt;
+            if (Array.isArray(meta.cronLastAffected)) appDataRef.cronLastAffected = meta.cronLastAffected;
+            if (typeof meta.isCronRunning === 'boolean') appDataRef.isCronRunning = meta.isCronRunning;
+        }
+
+        if (!appDataRef.cronLogs || !appDataRef.cronLogs.length) {
+            const runs = await fetchRecentRuns(tenantId, 1);
+            if (runs.length && Array.isArray(runs[0].logs) && runs[0].logs.length) {
+                appDataRef.cronLogs = runs[0].logs;
+                appDataRef.cronLastRunAt = runs[0].ran_at;
+                appDataRef.cronLastAffected = runs[0].affected || [];
+            }
+        }
+
+        return true;
+    }
+
+    function applyInvokeResult(appDataRef, result) {
+        const row = (result?.results || [])[0];
+        if (!row) return false;
+
+        if (Array.isArray(row.mergedLogs) && row.mergedLogs.length) {
+            appDataRef.cronLogs = row.mergedLogs;
+        } else if (Array.isArray(row.logs) && row.logs.length) {
+            const previous = Array.isArray(appDataRef.cronLogs) ? appDataRef.cronLogs : [];
+            appDataRef.cronLogs = [...previous, ...row.logs].slice(-50);
+        }
+
+        if (row.ranAt) appDataRef.cronLastRunAt = row.ranAt;
+        if (!row.skipped) appDataRef.cronRunCount = (appDataRef.cronRunCount || 0) + 1;
+        appDataRef.cronLastAffected = row.affected || [];
+        return true;
+    }
+
+    window.CronAPI = {
+        invokeExpiryJob: invokeExpiryJob,
+        fetchRecentRuns: fetchRecentRuns,
+        syncCronState: syncCronState,
+        applyInvokeResult: applyInvokeResult
+    };
+})();
+
+(function () {
+    'use strict';
+
+    const STORAGE_KEY = 'richies_isp_billing_v1';
+    const PORTAL_SESSION_KEY = 'richies_isp_portal_v1';
+
+    async function hashPassword(password) {
+        if (!password) return '';
+        const data = new TextEncoder().encode(password);
+        const hash = await crypto.subtle.digest('SHA-256', data);
+        const hex = Array.from(new Uint8Array(hash)).map(function (b) {
+            return b.toString(16).padStart(2, '0');
+        }).join('');
+        return 'sha256:' + hex;
+    }
+
+    async function verifyPassword(password, storedHash) {
+        if (!password || !storedHash) return false;
+        if (storedHash === 'hashed') return false;
+        const computed = await hashPassword(password);
+        return computed === storedHash;
+    }
+
+    function readLocalPayload() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return null;
+            const payload = JSON.parse(raw);
+            if (!payload || payload.version !== 1) return null;
+            return payload;
+        } catch (err) {
+            console.warn('Unable to read local app data for portal', err);
+            return null;
+        }
+    }
+
+    function buildAccountResponse(tenant, subscriber, pkg, currency) {
+        return {
+            ok: true,
+            tenant: {
+                id: tenant.id,
+                name: tenant.name,
+                slug: tenant.slug,
+                email: tenant.email || '',
+                phone: tenant.phone || ''
+            },
+            subscriber: {
+                id: subscriber.id,
+                full_name: subscriber.full_name,
+                username: subscriber.username,
+                email: subscriber.email || '',
+                phone: subscriber.phone || '',
+                status: subscriber.status,
+                expires_at: subscriber.expires_at,
+                package_id: subscriber.package_id,
+                router_id: subscriber.router_id || ''
+            },
+            package: pkg ? {
+                id: pkg.id,
+                name: pkg.name,
+                speed_mbps: pkg.speed_mbps,
+                duration_days: pkg.duration_days,
+                price: pkg.price
+            } : null,
+            currency: currency || 'NGN'
+        };
+    }
+
+    async function loginLocal(tenantSlug, username, password) {
+        const payload = readLocalPayload();
+        if (!payload || !payload.appData) {
+            return { ok: false, error: 'No local ISP data found. Use demo mode or log in as admin first.' };
+        }
+
+        const appData = payload.appData;
+        const config = payload.config || {};
+        const slug = String(tenantSlug || '').trim().toLowerCase();
+        const user = String(username || '').trim().toLowerCase();
+
+        const tenant = (appData.tenants || []).find(function (t) {
+            return String(t.slug || '').toLowerCase() === slug;
+        });
+        if (!tenant) {
+            return { ok: false, error: 'ISP not found. Check your ISP code.' };
+        }
+
+        const subscriber = (appData.subscribers || []).find(function (s) {
+            return s.tenant_id === tenant.id && String(s.username || '').toLowerCase() === user;
+        });
+        if (!subscriber) {
+            return { ok: false, error: 'Invalid username or password.' };
+        }
+
+        const valid = await verifyPassword(password, subscriber.password_hash);
+        if (!valid) {
+            if (subscriber.password_hash === 'hashed') {
+                return { ok: false, error: 'Portal password not set. Ask your ISP to set or reset your password.' };
+            }
+            return { ok: false, error: 'Invalid username or password.' };
+        }
+
+        const pkg = (appData.packages || []).find(function (p) {
+            return p.id === subscriber.package_id;
+        });
+
+        return buildAccountResponse(tenant, subscriber, pkg, config.currency);
+    }
+
+    function parsePortalRpcError(error) {
+        if (!error) return 'Portal login failed.';
+        const msg = error.message || String(error);
+        const code = error.code || '';
+
+        if (
+            code === 'PGRST202'
+            || /Could not find the function public\.portal_login/i.test(msg)
+            || /function public\.portal_login.*does not exist/i.test(msg)
+        ) {
+            return 'Portal login is not set up. Run supabase/portal.sql in the SQL Editor, wait a few seconds, then try again.';
+        }
+        if (/permission denied for function portal_login/i.test(msg)) {
+            return 'Portal login permissions are missing. Re-run supabase/portal.sql in the SQL Editor.';
+        }
+        return msg;
+    }
+
+    function parsePortalPayload(data) {
+        if (!data) return null;
+        if (typeof data === 'string') {
+            try {
+                return JSON.parse(data);
+            } catch (err) {
+                return null;
+            }
+        }
+        return data;
+    }
+
+    async function loginRemote(tenantSlug, username, password) {
+        const sb = window.SupabaseAPI && window.SupabaseAPI.getClient();
+        if (!sb) return { ok: false, error: 'Supabase is not configured.' };
+
+        const { data, error } = await sb.rpc('portal_login', {
+            p_tenant_slug: String(tenantSlug || '').trim(),
+            p_username: String(username || '').trim(),
+            p_password: String(password || '')
+        });
+
+        if (error) {
+            console.warn('portal_login RPC failed', error);
+            return { ok: false, error: parsePortalRpcError(error) };
+        }
+
+        const payload = parsePortalPayload(data);
+        if (!payload || payload.ok === false) {
+            return { ok: false, error: (payload && payload.error) || 'Invalid username or password.' };
+        }
+
+        return payload;
+    }
+
+    async function login(tenantSlug, username, password) {
+        if (window.SupabaseAPI && window.SupabaseAPI.isEnabled()) {
+            return loginRemote(tenantSlug, username, password);
+        }
+        return loginLocal(tenantSlug, username, password);
+    }
+
+    function savePortalSession(account) {
+        try {
+            sessionStorage.setItem(PORTAL_SESSION_KEY, JSON.stringify({
+                savedAt: new Date().toISOString(),
+                account: account
+            }));
+        } catch (err) {
+            console.warn('Unable to save portal session', err);
+        }
+    }
+
+    function loadPortalSession() {
+        try {
+            const raw = sessionStorage.getItem(PORTAL_SESSION_KEY);
+            if (!raw) return null;
+            const payload = JSON.parse(raw);
+            return payload && payload.account ? payload.account : null;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function clearPortalSession() {
+        try {
+            sessionStorage.removeItem(PORTAL_SESSION_KEY);
+        } catch (err) {
+            console.warn('Unable to clear portal session', err);
+        }
+    }
+
+    window.PortalAPI = {
+        hashPassword: hashPassword,
+        verifyPassword: verifyPassword,
+        login: login,
+        savePortalSession: savePortalSession,
+        loadPortalSession: loadPortalSession,
+        clearPortalSession: clearPortalSession,
+        PORTAL_SESSION_KEY: PORTAL_SESSION_KEY
+    };
+})();
+
+(function () {
+    'use strict';
+
+    let portalAccount = null;
+    let portalRenewModalInstance = null;
+
+    function getPortalRenewModal() {
+        const el = document.getElementById('portalRenewModal');
+        if (!el || typeof bootstrap === 'undefined') return null;
+        if (!portalRenewModalInstance) {
+            portalRenewModalInstance = bootstrap.Modal.getOrCreateInstance(el);
+        }
+        return portalRenewModalInstance;
+    }
+
+    function showPortalNotice(message, type) {
+        const notice = document.getElementById('portalRenewInlineNotice');
+        if (!notice) {
+            if (typeof window.showToast === 'function') window.showToast(message, type || 'info');
+            else window.alert(message);
+            return;
+        }
+        notice.className = 'portal-renew-notice alert alert-' + (type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info');
+        notice.textContent = message;
+        notice.classList.remove('hidden');
+    }
+
+    function getPortalPage() {
+        return document.getElementById('portalPage');
+    }
+
+    function setPortalVisible(show) {
+        const landing = document.getElementById('landingPage');
+        const dashboard = document.getElementById('dashboardPage');
+        const portal = getPortalPage();
+        if (!portal) return;
+
+        if (show) {
+            if (landing) landing.classList.add('hidden');
+            if (dashboard) dashboard.classList.remove('active');
+            portal.classList.remove('hidden');
+            document.body.classList.add('portal-mode');
+            document.body.classList.remove('dashboard-mode');
+        } else {
+            portal.classList.add('hidden');
+            document.body.classList.remove('portal-mode');
+        }
+    }
+
+    function showPortalLoginView() {
+        const loginView = document.getElementById('portalLoginView');
+        const dashboardView = document.getElementById('portalDashboardView');
+        const logoutBtn = document.getElementById('portalLogoutBtn');
+        if (loginView) loginView.classList.remove('hidden');
+        if (dashboardView) dashboardView.classList.add('hidden');
+        if (logoutBtn) logoutBtn.classList.add('hidden');
+    }
+
+    function showPortalDashboardView() {
+        const loginView = document.getElementById('portalLoginView');
+        const dashboardView = document.getElementById('portalDashboardView');
+        const logoutBtn = document.getElementById('portalLogoutBtn');
+        if (loginView) loginView.classList.add('hidden');
+        if (dashboardView) dashboardView.classList.remove('hidden');
+        if (logoutBtn) logoutBtn.classList.remove('hidden');
+    }
+
+    function formatPortalDate(dateStr) {
+        if (!dateStr) return '—';
+        const d = new Date(dateStr);
+        if (Number.isNaN(d.getTime())) return '—';
+        return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function getPortalCurrencySymbol(currency) {
+        const map = { NGN: '₦', GHS: 'GH₵', KES: 'KES ', USD: '$' };
+        return map[currency] || currency + ' ';
+    }
+
+    function formatPortalMoney(amount, currency) {
+        const symbol = getPortalCurrencySymbol(currency);
+        const value = Number(amount || 0);
+        return symbol + value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    }
+
+    function getExpirySummary(expiresAt, status) {
+        if (!expiresAt) return { label: 'No expiry set', className: 'text-muted', daysLeft: null };
+        const expiry = new Date(expiresAt);
+        const now = new Date();
+        const msLeft = expiry - now;
+        const daysLeft = Math.ceil(msLeft / (24 * 60 * 60 * 1000));
+
+        if (status === 'expired' || msLeft < 0) {
+            return { label: 'Expired', className: 'text-danger', daysLeft: daysLeft };
+        }
+        if (daysLeft <= 3) {
+            return { label: daysLeft === 0 ? 'Expires today' : `Expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`, className: 'text-warning', daysLeft: daysLeft };
+        }
+        return { label: `${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining`, className: 'text-success', daysLeft: daysLeft };
+    }
+
+    function renderPortalStatusBadge(status) {
+        const map = {
+            active: 'success',
+            expired: 'danger',
+            suspended: 'warning'
+        };
+        const cls = map[status] || 'secondary';
+        const label = status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown';
+        return `<span class="badge bg-${cls}">${label}</span>`;
+    }
+
+    function renderPortalDashboard(account) {
+        portalAccount = account;
+        const tenant = account.tenant || {};
+        const subscriber = account.subscriber || {};
+        const pkg = account.package || {};
+        const currency = account.currency || 'NGN';
+        const expiry = getExpirySummary(subscriber.expires_at, subscriber.status);
+
+        const setText = function (id, value) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        };
+
+        setText('portalTenantName', tenant.name || 'Your ISP');
+        setText('portalWelcomeName', subscriber.full_name || subscriber.username || 'Customer');
+        setText('portalAccountUsername', subscriber.username || '—');
+        setText('portalPhone', subscriber.phone || '—');
+        setText('portalEmail', subscriber.email || '—');
+        setText('portalPackageName', pkg.name || '—');
+        setText('portalPackageSpeed', pkg.speed_mbps ? `${pkg.speed_mbps} Mbps` : '—');
+        setText('portalPackagePrice', pkg.price != null ? formatPortalMoney(pkg.price, currency) : '—');
+        setText('portalExpiresAt', formatPortalDate(subscriber.expires_at));
+
+        const statusEl = document.getElementById('portalStatusBadge');
+        if (statusEl) statusEl.innerHTML = renderPortalStatusBadge(subscriber.status);
+
+        const expiryEl = document.getElementById('portalExpirySummary');
+        if (expiryEl) {
+            expiryEl.textContent = expiry.label;
+            expiryEl.className = 'portal-expiry-summary ' + expiry.className;
+        }
+
+        const contactEl = document.getElementById('portalContactInfo');
+        if (contactEl) {
+            const parts = [];
+            if (tenant.phone) parts.push(`Phone: ${tenant.phone}`);
+            if (tenant.email) parts.push(`Email: ${tenant.email}`);
+            contactEl.textContent = parts.length ? parts.join(' · ') : 'Contact your ISP to renew or get support.';
+        }
+
+        const renewBtn = document.getElementById('portalRenewBtn');
+        if (renewBtn) {
+            const canRenew = subscriber.status === 'active' || subscriber.status === 'expired';
+            renewBtn.disabled = !canRenew;
+            renewBtn.title = 'Online renewal will be available when Paystack is configured';
+        }
+    }
+
+    function openCustomerPortal(prefillSlug) {
+        setPortalVisible(true);
+        showPortalLoginView();
+
+        const slugInput = document.getElementById('portalTenantSlug');
+        if (slugInput && prefillSlug) slugInput.value = prefillSlug;
+
+        const restored = window.PortalAPI && window.PortalAPI.loadPortalSession();
+        if (restored && restored.subscriber) {
+            renderPortalDashboard(restored);
+            showPortalDashboardView();
+        }
+    }
+
+    function portalBackToSite() {
+        if (portalAccount) {
+            if (!confirm('Leave the customer portal and return to the public site?')) return;
+            portalLogout({ skipConfirm: true });
+            return;
+        }
+        setPortalVisible(false);
+        const landing = document.getElementById('landingPage');
+        if (landing) landing.classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function portalLogout(options) {
+        if (!options || !options.skipConfirm) {
+            if (!confirm('Log out of the customer portal?')) return;
+        }
+        portalAccount = null;
+        if (window.PortalAPI) window.PortalAPI.clearPortalSession();
+        showPortalLoginView();
+        setPortalVisible(false);
+        const landing = document.getElementById('landingPage');
+        if (landing) landing.classList.remove('hidden');
+        if (typeof showToast === 'function') showToast('Logged out of customer portal', 'info');
+    }
+
+    async function handlePortalLogin() {
+        const slug = document.getElementById('portalTenantSlug')?.value.trim();
+        const username = document.getElementById('portalUsername')?.value.trim();
+        const password = document.getElementById('portalPassword')?.value || '';
+        const submitBtn = document.getElementById('portalLoginBtn');
+        const errorEl = document.getElementById('portalLoginError');
+
+        if (errorEl) {
+            errorEl.classList.add('hidden');
+            errorEl.textContent = '';
+        }
+
+        if (!slug || !username || !password) {
+            if (errorEl) {
+                errorEl.textContent = 'Enter your ISP code, username, and password.';
+                errorEl.classList.remove('hidden');
+            }
+            return;
+        }
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Signing in…';
+        }
+
+        try {
+            const result = await window.PortalAPI.login(slug, username, password);
+            if (!result.ok) {
+                if (errorEl) {
+                    errorEl.textContent = result.error || 'Login failed.';
+                    errorEl.classList.remove('hidden');
+                }
+                return;
+            }
+
+            window.PortalAPI.savePortalSession(result);
+            renderPortalDashboard(result);
+            showPortalDashboardView();
+            if (typeof showToast === 'function') showToast(`Welcome, ${result.subscriber.full_name || result.subscriber.username}!`, 'success');
+        } catch (err) {
+            console.error(err);
+            if (errorEl) {
+                errorEl.textContent = err?.message || 'Unable to sign in right now.';
+                errorEl.classList.remove('hidden');
+            }
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> Sign In';
+            }
+        }
+    }
+
+    function handlePortalLoginSubmit(event) {
+        if (event) event.preventDefault();
+        handlePortalLogin();
+        return false;
+    }
+
+    function handlePortalRenewClick() {
+        if (!portalAccount) {
+            showPortalNotice('Session expired. Please sign in again.', 'error');
+            return;
+        }
+
+        const tenant = portalAccount.tenant || {};
+        const subscriber = portalAccount.subscriber || {};
+        const pkg = portalAccount.package || {};
+        const currency = portalAccount.currency || 'NGN';
+        const priceLabel = pkg.price != null ? formatPortalMoney(pkg.price, currency) : 'your plan price';
+        const durationLabel = pkg.duration_days ? `${pkg.duration_days} days` : 'the plan period';
+        const planLabel = pkg.name || 'your current plan';
+
+        const summaryEl = document.getElementById('portalRenewSummary');
+        if (summaryEl) {
+            const statusNote = subscriber.status === 'expired'
+                ? 'Your account is expired. '
+                : subscriber.status === 'suspended'
+                    ? 'Your account is suspended. '
+                    : '';
+            summaryEl.textContent = `${statusNote}Renew ${planLabel} (${priceLabel}) for ${durationLabel}.`;
+        }
+
+        const contactActions = document.getElementById('portalRenewContactActions');
+        if (contactActions) {
+            const parts = [];
+            if (tenant.phone) {
+                const tel = String(tenant.phone).replace(/\s+/g, '');
+                parts.push(`<a class="btn btn-outline-primary btn-sm" href="tel:${tel}"><i class="bi bi-telephone"></i> Call ${tenant.phone}</a>`);
+            }
+            if (tenant.email) {
+                const subject = encodeURIComponent(`Renew plan for ${subscriber.username || 'subscriber'}`);
+                parts.push(`<a class="btn btn-outline-primary btn-sm" href="mailto:${tenant.email}?subject=${subject}"><i class="bi bi-envelope"></i> Email ISP</a>`);
+            }
+            contactActions.innerHTML = parts.length
+                ? parts.join('')
+                : '<span class="text-muted">No ISP phone or email on file. Visit or call your provider directly.</span>';
+        }
+
+        const modal = getPortalRenewModal();
+        if (modal) {
+            modal.show();
+            return;
+        }
+
+        showPortalNotice('Online renewal is not available yet. Contact your ISP to renew.', 'info');
+    }
+
+    function tryRestorePortalOnBoot() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('portal') === '1' || window.location.hash === '#portal') {
+            openCustomerPortal(params.get('isp') || '');
+            return true;
+        }
+
+        const restored = window.PortalAPI && window.PortalAPI.loadPortalSession();
+        if (restored && restored.subscriber) {
+            setPortalVisible(true);
+            renderPortalDashboard(restored);
+            showPortalDashboardView();
+            return true;
+        }
+
+        return false;
+    }
+
+    window.openCustomerPortal = openCustomerPortal;
+    window.portalBackToSite = portalBackToSite;
+    window.portalLogout = portalLogout;
+    window.handlePortalLogin = handlePortalLogin;
+    window.handlePortalLoginSubmit = handlePortalLoginSubmit;
+    window.handlePortalRenewClick = handlePortalRenewClick;
+    window.tryRestorePortalOnBoot = tryRestorePortalOnBoot;
+    window.renderPortalDashboard = renderPortalDashboard;
+})();
+
 // ================================================================
 // DATA STORE
 // ================================================================
@@ -1235,8 +2769,9 @@ let config = {
     currency: 'NGN',
     currencySymbol: '\u20A6',
     currencyName: 'Nigerian Naira',
-    paystackSecretKey: 'sk_test_xxxxxxxxxxxxxxxx',
+    paystackSecretKey: '',
     paystackPublicKey: 'pk_test_xxxxxxxxxxxxxxxx',
+    paystackSecretConfigured: false,
     smsGateway: 'africa_talking',
     defaultRouterType: 'mikrotik',
     settingsUpdatedAt: null
@@ -1259,7 +2794,7 @@ let appData = {
         { id: 'p4', tenant_id: 't1', name: 'Enterprise', speed_mbps: 100, duration_days: 30, price: 12500, is_active: true, description: 'Business grade' },
     ],
     subscribers: [
-        { id: 's1', tenant_id: 't1', package_id: 'p1', router_id: 'r1', full_name: 'Chidi Okonkwo', email: 'chidi@example.com', phone: '+234 80 111 2222', username: 'chidi123', password_hash: 'hashed', status: 'active', expires_at: '2026-08-15T23:59:59', created_at: '2026-06-15T10:00:00' },
+        { id: 's1', tenant_id: 't1', package_id: 'p1', router_id: 'r1', full_name: 'Chidi Okonkwo', email: 'chidi@example.com', phone: '+234 80 111 2222', username: 'chidi123', password_hash: 'sha256:d3ad9315b7be5dd53b31a273b3b3aba5defe700808305aa16a3062b76658a791', status: 'active', expires_at: '2026-08-15T23:59:59', created_at: '2026-06-15T10:00:00' },
         { id: 's2', tenant_id: 't1', package_id: 'p2', router_id: 'r1', full_name: 'Ngozi Okafor', email: 'ngozi@example.com', phone: '+234 80 333 4444', username: 'ngozi_okafor', password_hash: 'hashed', status: 'active', expires_at: '2026-08-20T23:59:59', created_at: '2026-06-20T14:30:00' },
         { id: 's3', tenant_id: 't1', package_id: 'p1', router_id: 'r1', full_name: 'Emeka Eze', email: 'emeka@example.com', phone: '+234 80 555 6666', username: 'emeka_eze', password_hash: 'hashed', status: 'expired', expires_at: '2026-06-01T23:59:59', created_at: '2026-05-01T09:00:00' },
         { id: 's4', tenant_id: 't1', package_id: 'p3', router_id: 'r2', full_name: 'Amara Okafor', email: 'amara@example.com', phone: '+234 80 777 8888', username: 'amara_okafor', password_hash: 'hashed', status: 'active', expires_at: '2026-08-25T23:59:59', created_at: '2026-06-25T16:45:00' },
@@ -1311,17 +2846,31 @@ function getPersistableAppData() {
     };
 }
 
+function getSafeConfigSnapshot() {
+    const safe = { ...config };
+    delete safe.paystackSecretKey;
+    return safe;
+}
+
+function isSupabaseBackend() {
+    return window.SupabaseAPI && window.SupabaseAPI.isEnabled();
+}
+
 function persistAppState() {
+    const snapshot = getPersistableAppData();
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
             version: 1,
             savedAt: new Date().toISOString(),
             config: { ...config },
-            appData: getPersistableAppData()
+            appData: snapshot
         }));
     } catch (err) {
         console.warn('Unable to save data to localStorage', err);
         showToast('Could not save data locally (storage may be full)', 'warning');
+    }
+    if (isSupabaseBackend() && appData.isLoggedIn) {
+        window.SupabaseAPI.schedulePushAppState(snapshot, getSafeConfigSnapshot());
     }
 }
 
@@ -1434,6 +2983,8 @@ function isDashboardActive() {
 // ================================================================
 let currentTab = 'login';
 let loginModalInstance = null;
+let signupInProgress = false;
+let cronManualInProgress = false;
 let subscriberModalInstance = null;
 let packageModalInstance = null;
 let paymentModalInstance = null;
@@ -1448,18 +2999,46 @@ function openLoginModal() {
     loginModalInstance.show();
 }
 
+function setSignupMessage(message, type) {
+    const el = document.getElementById('authStatus') || document.getElementById('signupStatus');
+    if (!el) {
+        if (message) showToast(message, type === 'success' ? 'success' : type === 'error' ? 'error' : 'info');
+        return;
+    }
+    if (!message) {
+        el.className = 'signup-status hidden';
+        el.textContent = '';
+        return;
+    }
+    el.className = 'signup-status ' + (type || 'info');
+    el.textContent = message;
+}
+
+function setSignupLoading(loading) {
+    signupInProgress = loading;
+    const btn = document.querySelector('#signupForm .btn-signup-submit');
+    if (btn) {
+        btn.disabled = loading;
+        btn.innerHTML = loading
+            ? '<span class="spinner-border spinner-border-sm me-2"></span> Creating account…'
+            : '<i class="bi bi-person-plus"></i> Start 14-Day Free Trial';
+    }
+}
+
 function openSignupModal() {
     if (typeof bootstrap === 'undefined') {
         alert('Loading… please wait a moment and try again.');
         return;
     }
     switchTab('signup');
+    setSignupMessage('', '');
     if (!loginModalInstance) { loginModalInstance = new bootstrap.Modal(document.getElementById('loginModal')); }
     loginModalInstance.show();
 }
 
 function switchTab(tab) {
     currentTab = tab;
+    if (tab === 'signup') setSignupMessage('', '');
     const loginBtn = document.getElementById('tabLogin');
     const signupBtn = document.getElementById('tabSignup');
     const loginFields = document.getElementById('loginFields');
@@ -1495,43 +3074,124 @@ function handleLoginSubmit(event) {
 
 function handleSignupSubmit(event) {
     if (event) event.preventDefault();
+    if (signupInProgress) return false;
     handleSignup();
     return false;
 }
 
-function handleLogin() {
+function completeAuthSession(session, welcomeMessage) {
+    if (loginModalInstance) loginModalInstance.hide();
+    appData.isLoggedIn = true;
+    appData.session = session;
+    if (session.tenantId && isSupabaseBackend()) {
+        window.SupabaseAPI.setActiveTenantId(session.tenantId);
+    }
+    schedulePersistAppState();
+    setTimeout(function() {
+        showDashboard({ welcomeMessage: welcomeMessage });
+    }, 300);
+}
+
+async function handleLogin() {
     const email = document.getElementById('loginEmail').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
+
+    if (isSupabaseBackend()) {
+        try {
+            showToast('Signing in…', 'info');
+            const result = await window.SupabaseAPI.signIn(email, password);
+            if (!result.ok) {
+                showToast(result.error || 'Login failed', 'error');
+                return;
+            }
+            await window.SupabaseAPI.hydrateAppFromRemote(result.tenantId, appData, config);
+            applyCurrency(config.currency || 'NGN', { showToast: false, refreshUI: false });
+            if (!Array.isArray(appData.routers)) appData.routers = [];
+            appData.routers.forEach(ensureRouterConfig);
+            syncRouterIdCounter();
+            ensureSubscriberRouterIds();
+            completeAuthSession(result.session, "Welcome back to Richie's ISP Billing!");
+        } catch (err) {
+            console.error(err);
+            showToast('Could not sign in. Check your Supabase setup.', 'error');
+        }
+        return;
+    }
+
     if (email === DEMO_LOGIN.email && password === DEMO_LOGIN.password) {
-        if (loginModalInstance) { loginModalInstance.hide(); }
-        appData.isLoggedIn = true;
-        appData.session = { userName: 'Demo Admin', tenantName: getActiveTenant().name };
-        schedulePersistAppState();
-        setTimeout(function() {
-            showDashboard({ welcomeMessage: "Welcome back to Richie's ISP Billing!" });
-        }, 300);
+        completeAuthSession(
+            { userName: 'Demo Admin', tenantName: getActiveTenant().name, tenantId: getActiveTenantId() },
+            "Welcome back to Richie's ISP Billing!"
+        );
     } else {
         showToast('Invalid credentials. Please use demo@ispbilling.com / demo123', 'error');
     }
 }
 
-function handleSignup() {
+async function handleSignup() {
+    if (signupInProgress) return;
+
     const name = document.getElementById('signupName').value.trim();
-    const email = document.getElementById('signupEmail').value.trim();
+    const email = document.getElementById('signupEmail').value.trim().toLowerCase();
     const phone = document.getElementById('signupPhone').value.trim();
     const company = document.getElementById('signupCompany').value.trim();
     const password = document.getElementById('signupPassword').value;
     const confirm = document.getElementById('signupConfirm').value;
+
+    setSignupMessage('', '');
+
     if (!name || !email || !phone || !company || !password || !confirm) {
-        showToast('Please fill in all fields', 'error');
+        setSignupMessage('Please fill in all fields.', 'error');
         return;
     }
-    if (password.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
-    if (password !== confirm) { showToast('Passwords do not match', 'error'); return; }
-    if (loginModalInstance) { loginModalInstance.hide(); }
+    if (password.length < 6) {
+        setSignupMessage('Password must be at least 6 characters.', 'error');
+        return;
+    }
+    if (password !== confirm) {
+        setSignupMessage('Passwords do not match.', 'error');
+        return;
+    }
+
+    if (isSupabaseBackend()) {
+        setSignupLoading(true);
+        try {
+            setSignupMessage('Creating your account…', 'info');
+            const result = await window.SupabaseAPI.signUp({ name, email, password, phone, company });
+            if (!result.ok) {
+                setSignupMessage(result.error || 'Signup failed.', 'error');
+                showToast(result.error || 'Signup failed', 'error');
+                return;
+            }
+            if (result.needsEmailConfirmation) {
+                document.getElementById('loginEmail').value = email;
+                document.getElementById('loginPassword').value = password;
+                switchTab('login');
+                setSignupMessage('Account created! Check your email to confirm, then sign in below.', 'success');
+                showToast('Check your email to confirm your account.', 'success');
+                return;
+            }
+            await window.SupabaseAPI.hydrateAppFromRemote(result.tenantId, appData, config);
+            applyCurrency(config.currency || 'NGN', { showToast: false, refreshUI: false });
+            document.getElementById('loginEmail').value = email;
+            document.getElementById('loginPassword').value = password;
+            const firstName = name.split(/\s+/)[0] || name;
+            completeAuthSession(result.session, `Welcome to Richie's ISP Billing, ${firstName}!`);
+        } catch (err) {
+            console.error(err);
+            const msg = err?.message || 'Could not create account. Check your Supabase setup.';
+            setSignupMessage(msg, 'error');
+            showToast(msg, 'error');
+        } finally {
+            setSignupLoading(false);
+        }
+        return;
+    }
+
+    if (loginModalInstance) loginModalInstance.hide();
     appData.tenants[0].name = company;
     appData.isLoggedIn = true;
-    appData.session = { userName: name, tenantName: company };
+    appData.session = { userName: name, tenantName: company, tenantId: getActiveTenantId() };
     document.getElementById('loginEmail').value = email;
     document.getElementById('loginPassword').value = password;
     const firstName = name.split(/\s+/)[0] || name;
@@ -1545,7 +3205,13 @@ function handleSignup() {
 // LANDING PAGE FUNCTIONS
 // ================================================================
 function getActiveTenant() {
-    return appData.tenants[0] || { name: 'Demo ISP' };
+    return appData.tenants[0] || { id: 't1', name: 'Demo ISP' };
+}
+
+function getActiveTenantId() {
+    if (appData.session && appData.session.tenantId) return appData.session.tenantId;
+    const tenant = getActiveTenant();
+    return tenant.id || 't1';
 }
 
 function getMonthRevenue() {
@@ -1632,7 +3298,11 @@ function showDashboard(options = {}) {
 
     const landing = document.getElementById('landingPage');
     const dashboard = document.getElementById('dashboardPage');
+    const portal = document.getElementById('portalPage');
     if (!landing || !dashboard) return;
+
+    if (portal) portal.classList.add('hidden');
+    document.body.classList.remove('portal-mode');
 
     if (loginModalInstance) loginModalInstance.hide();
 
@@ -1650,10 +3320,13 @@ function stopCronInterval() {
     }
 }
 
-function performLogout() {
+async function performLogout() {
     stopCronInterval();
     appData.cronNextRunAt = null;
     appData.isLoggedIn = false;
+    if (isSupabaseBackend()) {
+        try { await window.SupabaseAPI.signOut(); } catch (e) { console.warn(e); }
+    }
 
     if (loginModalInstance) {
         try { loginModalInstance.hide(); } catch (e) { /* ignore */ }
@@ -1878,6 +3551,26 @@ function resetFilters() {
     renderSubscribers();
 }
 
+function toDatetimeLocalValue(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = function(n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function updateSubscriberExpiryDefault() {
+    const editId = document.getElementById('subEditId')?.value;
+    const packageId = document.getElementById('subPackage')?.value;
+    const expiresEl = document.getElementById('subExpiresAt');
+    if (editId || !expiresEl || !packageId) return;
+    const pkg = getPackage(packageId);
+    if (!pkg) return;
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + pkg.duration_days);
+    expiresEl.value = toDatetimeLocalValue(expiresAt.toISOString());
+}
+
 function openSubscriberModal(subscriberId = null) {
     const modal = getSubscriberModal();
     if (!modal) return;
@@ -1886,8 +3579,8 @@ function openSubscriberModal(subscriberId = null) {
     document.getElementById('subEditId').value = subscriberId || '';
     document.getElementById('subPasswordLabel').textContent = isEdit ? 'Password (optional)' : 'Password *';
     document.getElementById('subModalHint').textContent = isEdit
-        ? 'Leave password blank to keep the current credentials. Changing package does not auto-adjust expiry — use Renew if needed.'
-        : 'New subscribers get an expiry date based on the selected package duration.';
+        ? 'Edit expiry date and status here. Cron marks Active subscribers expired when the date passes.'
+        : 'Pick a package to auto-fill expiry, or set the date manually.';
 
     if (isEdit) {
         const s = getSubscriber(subscriberId);
@@ -1905,6 +3598,7 @@ function openSubscriberModal(subscriberId = null) {
         document.getElementById('subPassword').value = '';
         document.getElementById('subPackage').value = s.package_id || '';
         document.getElementById('subStatus').value = s.status;
+        document.getElementById('subExpiresAt').value = toDatetimeLocalValue(s.expires_at);
     } else {
         populateSubscriberPackageSelect();
         populateSubscriberRouterSelect();
@@ -1916,11 +3610,16 @@ function openSubscriberModal(subscriberId = null) {
         document.getElementById('subPassword').value = '';
         document.getElementById('subPackage').value = '';
         document.getElementById('subStatus').value = 'active';
+        document.getElementById('subExpiresAt').value = '';
+    }
+    const packageSelect = document.getElementById('subPackage');
+    if (packageSelect) {
+        packageSelect.onchange = updateSubscriberExpiryDefault;
     }
     modal.show();
 }
 
-function saveSubscriber() {
+async function saveSubscriber() {
     const id = document.getElementById('subEditId').value;
     const name = document.getElementById('subName').value.trim();
     const email = document.getElementById('subEmail').value.trim();
@@ -1930,6 +3629,7 @@ function saveSubscriber() {
     const packageId = document.getElementById('subPackage').value;
     const routerId = document.getElementById('subRouter')?.value || '';
     const status = document.getElementById('subStatus').value;
+    const expiresValue = document.getElementById('subExpiresAt')?.value || '';
     if (!name || !username || !phone) { showToast('Please fill in all required fields (*)', 'error'); return; }
     if (!packageId) { showToast('Please select a package', 'error'); return; }
     if (!routerId) { showToast('Please select a hotspot router for this subscriber', 'error'); return; }
@@ -1938,6 +3638,12 @@ function saveSubscriber() {
     if (isUsernameTaken(username, id || null)) {
         showToast('That username is already in use', 'error');
         return;
+    }
+    let passwordHash = null;
+    if (password && window.PortalAPI && window.PortalAPI.hashPassword) {
+        passwordHash = await window.PortalAPI.hashPassword(password);
+    } else if (password) {
+        passwordHash = 'hashed';
     }
     if (id) {
         const s = getSubscriber(id);
@@ -1949,24 +3655,41 @@ function saveSubscriber() {
             s.package_id = packageId;
             s.router_id = routerId;
             s.status = status;
-            if (password) s.password_hash = 'hashed';
+            if (expiresValue) {
+                const expiresAt = new Date(expiresValue);
+                if (Number.isNaN(expiresAt.getTime())) {
+                    showToast('Enter a valid expiry date', 'error');
+                    return;
+                }
+                s.expires_at = expiresAt.toISOString();
+            }
+            if (passwordHash) s.password_hash = passwordHash;
             showToast('Subscriber updated successfully!', 'success');
             addDashboardLog(`Updated subscriber ${name} (${username})`, 'info');
         }
     } else {
         if (!password) { showToast('Password is required for new subscribers', 'error'); return; }
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + pkg.duration_days);
+        let expiresAt;
+        if (expiresValue) {
+            expiresAt = new Date(expiresValue);
+            if (Number.isNaN(expiresAt.getTime())) {
+                showToast('Enter a valid expiry date', 'error');
+                return;
+            }
+        } else {
+            expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + pkg.duration_days);
+        }
         appData.subscribers.push({
             id: 's' + appData.subscriberIdCounter++,
-            tenant_id: 't1',
+            tenant_id: getActiveTenantId(),
             package_id: packageId,
             router_id: routerId,
             full_name: name,
             email: email,
             phone: phone,
             username: username,
-            password_hash: 'hashed',
+            password_hash: passwordHash || 'hashed',
             status: status,
             expires_at: expiresAt.toISOString(),
             created_at: new Date().toISOString()
@@ -1988,6 +3711,7 @@ function deleteSubscriber(id) {
     const s = getSubscriber(id);
     if (!s) return;
     if (!confirm(`Delete ${s.full_name} (${s.username})? This cannot be undone.`)) return;
+    if (isSupabaseBackend()) window.SupabaseAPI.deleteRow('subscribers', id);
     appData.subscribers = appData.subscribers.filter(sub => sub.id !== id);
     showToast('Subscriber deleted', 'warning');
     addDashboardLog(`Deleted subscriber ${s.full_name}`, 'warning');
@@ -2150,7 +3874,7 @@ function savePackage() {
     } else {
         appData.packages.push({
             id: 'p' + appData.packageIdCounter++,
-            tenant_id: 't1',
+            tenant_id: getActiveTenantId(),
             name: name,
             speed_mbps: speed,
             duration_days: duration,
@@ -2181,6 +3905,7 @@ function deletePackage(id) {
         return;
     }
     if (!confirm(`Delete package "${p.name}"? This cannot be undone.`)) return;
+    if (isSupabaseBackend()) window.SupabaseAPI.deleteRow('packages', id);
     appData.packages = appData.packages.filter(pkg => pkg.id !== id);
     showToast('Package deleted', 'warning');
     addDashboardLog(`Deleted package ${p.name}`, 'warning');
@@ -2422,7 +4147,7 @@ function saveRouter() {
     } else {
         const newRouter = {
             id: 'r' + appData.routerIdCounter++,
-            tenant_id: 't1',
+            tenant_id: getActiveTenantId(),
             name,
             type,
             host,
@@ -2455,6 +4180,7 @@ function deleteRouter(id) {
     const r = getRouter(id);
     if (!r) return;
     if (!confirm(`Remove router "${r.name}"?`)) return;
+    if (isSupabaseBackend()) window.SupabaseAPI.deleteRow('routers', id);
     appData.routers = appData.routers.filter(x => x.id !== id);
     appData.subscribers.forEach(s => {
         if (s.router_id === id) s.router_id = '';
@@ -2847,6 +4573,95 @@ function processModalPayment() {
     executePayment(subscriberId, packageId, amount, method, { source: 'modal' });
 }
 
+function finalizeSuccessfulPayment(transaction, subscriber, pkg, amount, method, options) {
+    transaction.status = 'success';
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + pkg.duration_days);
+    subscriber.expires_at = expiresAt.toISOString();
+    subscriber.status = 'active';
+    subscriber.package_id = pkg.id;
+    showToast(`Payment successful! ${subscriber.full_name} active for ${pkg.duration_days} days.`, 'success');
+    addDashboardLog(`Payment received ${formatCurrency(amount)} — ${subscriber.full_name} on ${pkg.name}`, 'success');
+    addCronLog(`Payment: ${subscriber.full_name} renewed for ${pkg.duration_days} days via ${method}`, 'success');
+    if (options.source === 'inline') resetInlinePaymentForm();
+    renderPayments();
+    refreshDashboard();
+    renderSubscribers();
+    schedulePersistAppState();
+}
+
+function finalizeFailedPayment(transaction, subscriber, amount, method, message) {
+    transaction.status = 'failed';
+    showToast(message || 'Payment failed. Please try again.', 'error');
+    addDashboardLog(`Payment failed for ${subscriber.full_name} (${formatCurrency(amount)})`, 'error');
+    addCronLog(`Payment failed for ${subscriber.full_name} via ${method}`, 'error');
+    renderPayments();
+    refreshDashboard();
+    schedulePersistAppState();
+}
+
+async function executePaystackPayment(subscriber, pkg, amount, transaction, options) {
+    const payerEmail = (subscriber.email || appData.session?.email || '').trim().toLowerCase();
+    if (!payerEmail) {
+        showToast('Add an email to this subscriber before taking a card payment.', 'error');
+        transaction.status = 'failed';
+        renderPayments();
+        schedulePersistAppState();
+        return;
+    }
+
+    try {
+        showToast('Opening Paystack checkout…', 'info');
+        addDashboardLog(`Paystack checkout started for ${subscriber.full_name}`, 'info');
+
+        const init = await window.PaystackAPI.initializePayment({
+            amount: amount,
+            email: payerEmail,
+            transactionId: transaction.id,
+            subscriberId: subscriber.id,
+            packageId: pkg.id,
+            subscriberName: subscriber.full_name,
+            packageName: pkg.name,
+            currency: config.currency || 'NGN',
+            callbackUrl: window.location.href.split('#')[0].split('?')[0]
+        });
+
+        transaction.paystack_reference = init.reference;
+        transaction.status = 'pending';
+        schedulePersistAppState();
+
+        const response = await window.PaystackAPI.openCheckout({
+            publicKey: config.paystackPublicKey,
+            email: payerEmail,
+            amount: amount,
+            currency: config.currency || 'NGN',
+            reference: init.reference,
+            metadata: {
+                transaction_id: transaction.id,
+                subscriber_id: subscriber.id,
+                package_id: pkg.id
+            }
+        });
+
+        showToast('Verifying payment…', 'info');
+        await window.PaystackAPI.verifyPayment(response.reference, transaction.id);
+        await window.SupabaseAPI.hydrateAppFromRemote(window.SupabaseAPI.getActiveTenantId(), appData, config);
+        syncRouterIdCounter();
+        ensureSubscriberRouterIds();
+        finalizeSuccessfulPayment(transaction, getSubscriber(subscriber.id) || subscriber, pkg, amount, 'card', options);
+    } catch (err) {
+        const message = err?.message || 'Paystack payment failed';
+        if (/closed/i.test(message)) {
+            showToast('Payment cancelled.', 'warning');
+            transaction.status = 'pending';
+        } else {
+            finalizeFailedPayment(transaction, subscriber, amount, 'card', message);
+        }
+        renderPayments();
+        schedulePersistAppState();
+    }
+}
+
 function executePayment(subscriberId, packageId, amount, method, options = {}) {
     const subscriber = getSubscriber(subscriberId);
     const pkg = getPackage(packageId);
@@ -2861,36 +4676,36 @@ function executePayment(subscriberId, packageId, amount, method, options = {}) {
         amount: amount,
         method: method,
         status: 'pending',
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        paystack_reference: null
     };
     appData.transactions.push(transaction);
     renderPayments();
     schedulePersistAppState();
     addDashboardLog(`Payment pending: ${formatCurrency(amount)} for ${subscriber.full_name} (${formatPaymentMethod(method)})`, 'info');
+
+    if (method === 'card' && window.PaystackAPI && window.PaystackAPI.isReady(config)) {
+        executePaystackPayment(subscriber, pkg, amount, transaction, options);
+        return;
+    }
+
+    if (method === 'card' && isSupabaseBackend()) {
+        showToast('Configure Paystack keys in Settings before taking card payments.', 'error');
+        transaction.status = 'failed';
+        renderPayments();
+        schedulePersistAppState();
+        return;
+    }
+
     showToast(`Processing ${formatPaymentMethod(method)} payment of ${formatCurrency(amount)} for ${subscriber.full_name}...`, 'info');
 
     setTimeout(() => {
         const success = Math.random() > 0.15;
-        transaction.status = success ? 'success' : 'failed';
         if (success) {
-            const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + pkg.duration_days);
-            subscriber.expires_at = expiresAt.toISOString();
-            subscriber.status = 'active';
-            subscriber.package_id = packageId;
-            showToast(`Payment successful! ${subscriber.full_name} active for ${pkg.duration_days} days.`, 'success');
-            addDashboardLog(`Payment received ${formatCurrency(amount)} — ${subscriber.full_name} on ${pkg.name}`, 'success');
-            addCronLog(`Payment: ${subscriber.full_name} renewed for ${pkg.duration_days} days via ${method}`, 'success');
-            if (options.source === 'inline') resetInlinePaymentForm();
+            finalizeSuccessfulPayment(transaction, subscriber, pkg, amount, method, options);
         } else {
-            showToast('Payment failed. Please try again.', 'error');
-            addDashboardLog(`Payment failed for ${subscriber.full_name} (${formatCurrency(amount)})`, 'error');
-            addCronLog(`Payment failed for ${subscriber.full_name} via ${method}`, 'error');
+            finalizeFailedPayment(transaction, subscriber, amount, method);
         }
-        renderPayments();
-        refreshDashboard();
-        renderSubscribers();
-        schedulePersistAppState();
     }, 2000);
 }
 
@@ -2939,6 +4754,10 @@ function renderCronLogFromStore() {
     const log = document.getElementById('cronLogContainer');
     if (!log) return;
     log.innerHTML = '';
+    if (!appData.cronLogs || !appData.cronLogs.length) {
+        log.innerHTML = '<div class="text-muted small py-2">No log entries yet. Click <strong>Run Manually</strong> to execute the expiry job.</div>';
+        return;
+    }
     appData.cronLogs.forEach(entry => {
         const time = new Date(entry.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const classMap = { success: 'log-success', error: 'log-error', warning: 'log-warning', info: 'log-info' };
@@ -2988,7 +4807,10 @@ function updateCronStatusUI() {
     }
     const summary = document.getElementById('cronSummaryText');
     if (summary) {
-        summary.textContent = `${appData.cronRunCount} run${appData.cronRunCount === 1 ? '' : 's'} completed · ${appData.isCronRunning ? 'Auto-runs every 8 seconds in this demo' : 'Scheduler paused — you can still run manually'}`;
+        const mode = isSupabaseBackend()
+            ? (appData.isCronRunning ? 'Server runs hourly via Supabase' : 'Server cron paused for this tenant')
+            : (appData.isCronRunning ? 'Auto-runs every 8 seconds in this demo' : 'Scheduler paused — you can still run manually');
+        summary.textContent = `${appData.cronRunCount} run${appData.cronRunCount === 1 ? '' : 's'} completed · ${mode}`;
     }
 }
 
@@ -3007,7 +4829,9 @@ function updateCronScheduleFields() {
         lastRun.value = appData.cronLastRunAt ? new Date(appData.cronLastRunAt).toLocaleString() : 'Not run yet';
     }
     if (nextRun) {
-        if (!appData.isCronRunning) {
+        if (isSupabaseBackend()) {
+            nextRun.value = appData.isCronRunning ? 'Every hour on Supabase server' : 'Paused for this tenant';
+        } else if (!appData.isCronRunning) {
             nextRun.value = 'Paused';
         } else if (appData.cronNextRunAt) {
             const seconds = Math.max(0, Math.ceil((new Date(appData.cronNextRunAt) - Date.now()) / 1000));
@@ -3018,14 +4842,75 @@ function updateCronScheduleFields() {
     }
 }
 
-function renderCronPage() {
+async function renderCronPage() {
+    if (isSupabaseBackend() && window.CronAPI) {
+        try {
+            await window.CronAPI.syncCronState(appData, getActiveTenantId());
+        } catch (err) {
+            console.warn('Unable to refresh cron data from Supabase', err);
+        }
+    }
     updateCronStatusUI();
     updateCronScheduleFields();
     renderCronAffectedTable();
     renderCronLogFromStore();
 }
 
-function runCronManually() {
+async function runCronManually() {
+    if (cronManualInProgress) return;
+
+    if (isSupabaseBackend() && window.CronAPI) {
+        cronManualInProgress = true;
+        const tenantId = getActiveTenantId();
+        addCronLog('Manual expiry check started…', 'info');
+        renderCronLogFromStore();
+
+        try {
+            showToast('Running expiry job…', 'info');
+            const result = await window.CronAPI.invokeExpiryJob(tenantId);
+            window.CronAPI.applyInvokeResult(appData, result);
+            await window.CronAPI.syncCronState(appData, tenantId);
+
+            if (!appData.cronLogs || !appData.cronLogs.length) {
+                addCronLog('Server returned no log entries — running local check too', 'warning');
+                suspendExpiredSubscribers({ manual: true });
+            } else if (tenantId && window.SupabaseAPI.reloadSubscribers) {
+                await window.SupabaseAPI.reloadSubscribers(tenantId, appData);
+            }
+
+            updateCronStatusUI();
+            updateCronScheduleFields();
+            renderCronAffectedTable();
+            renderCronLogFromStore();
+            refreshDashboard();
+            renderSubscribers();
+
+            const tenantResult = (result?.results || [])[0];
+            if (tenantResult?.skipped) {
+                showToast(tenantResult.reason || 'Cron is paused for this tenant', 'warning');
+                return;
+            }
+
+            const count = result?.totalAffected || 0;
+            showToast(
+                count
+                    ? `Cron marked ${count} subscriber${count === 1 ? '' : 's'} expired`
+                    : 'Cron completed — no active subscribers are past expiry (status must be Active with a past expiry date)',
+                count ? 'success' : 'info'
+            );
+        } catch (err) {
+            console.error(err);
+            addCronLog(`Server cron failed: ${err?.message || 'unknown error'}`, 'error');
+            addCronLog('Running local expiry check instead…', 'warning');
+            renderCronLogFromStore();
+            suspendExpiredSubscribers({ manual: true });
+            showToast(err?.message || 'Server cron failed; ran local check instead', 'warning');
+        } finally {
+            cronManualInProgress = false;
+        }
+        return;
+    }
+
     addCronLog('Manual cron job triggered', 'info');
     suspendExpiredSubscribers({ manual: true });
     showToast('Cron job executed manually', 'success');
@@ -3090,6 +4975,10 @@ function toggleCronJob() {
 }
 
 function startCronInterval() {
+    if (isSupabaseBackend()) {
+        updateCronScheduleFields();
+        return;
+    }
     if (!isDashboardActive()) return;
     stopCronInterval();
     scheduleCronNextRun();
@@ -3128,17 +5017,115 @@ function updateSettingsSummary() {
     const updated = config.settingsUpdatedAt
         ? `Last saved ${new Date(config.settingsUpdatedAt).toLocaleString()} · `
         : '';
-    summary.textContent = `${updated}Paystack ${maskSecretKey(config.paystackPublicKey)} · ${config.currencyName} (${config.currencySymbol}) · ${SMS_GATEWAY_LABELS[config.smsGateway] || config.smsGateway} · ${ROUTER_TYPE_LABELS[config.defaultRouterType] || config.defaultRouterType}`;
+    summary.textContent = `${updated}Paystack ${maskSecretKey(config.paystackPublicKey)}${config.paystackSecretConfigured ? ' · secret saved' : ' · secret missing'} · ${config.currencyName} (${config.currencySymbol}) · ${SMS_GATEWAY_LABELS[config.smsGateway] || config.smsGateway} · ${ROUTER_TYPE_LABELS[config.defaultRouterType] || config.defaultRouterType}`;
+}
+
+function getPortalLink(slug) {
+    const code = slug || getActiveTenant().slug || 'demo-isp';
+    const origin = window.location.origin || '';
+    let path = window.location.pathname || '/';
+    if (path.endsWith('.html')) {
+        path = path.replace(/[^/]+$/, '');
+    }
+    if (!path.endsWith('/')) path += '/';
+    const base = origin ? origin + path : window.location.href.split('#')[0].split('?')[0];
+    return `${base}?portal=1&isp=${encodeURIComponent(code)}`;
+}
+
+async function copyTextToClipboard(text, successMessage) {
+    if (!text) {
+        showToast('Nothing to copy', 'warning');
+        return false;
+    }
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            const input = document.createElement('textarea');
+            input.value = text;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+        }
+        showToast(successMessage || 'Copied to clipboard', 'success');
+        return true;
+    } catch (err) {
+        console.warn('Copy failed', err);
+        showToast('Could not copy — select the text and copy manually', 'warning');
+        return false;
+    }
+}
+
+function copyPortalLink() {
+    const link = document.getElementById('portalLink')?.value || getPortalLink(getActiveTenant().slug);
+    copyTextToClipboard(link, 'Portal link copied');
+}
+
+function copyIspCode() {
+    const code = document.getElementById('portalIspCode')?.value || getActiveTenant().slug || '';
+    copyTextToClipboard(code, 'ISP code copied');
+}
+
+function renderProductionChecklist() {
+    const list = document.getElementById('productionChecklist');
+    if (!list) return;
+
+    const items = [];
+    const supabaseOn = isSupabaseBackend();
+    items.push({
+        ok: supabaseOn,
+        label: supabaseOn ? 'Supabase connected' : 'Supabase not configured (offline demo mode)'
+    });
+    items.push({
+        ok: supabaseOn,
+        label: 'SQL run: schema.sql, cron.sql, portal.sql'
+    });
+    items.push({
+        ok: supabaseOn,
+        label: 'Edge function deployed: expire-subscribers'
+    });
+    items.push({
+        ok: supabaseOn,
+        label: 'Hourly schedule enabled in Supabase Dashboard'
+    });
+    items.push({
+        ok: true,
+        label: 'Subscriber portal passwords set (admin edit or SQL)'
+    });
+
+    list.innerHTML = items.map(function (item) {
+        const icon = item.ok ? 'bi-check-circle-fill text-success' : 'bi-circle text-muted';
+        return `<li class="mb-2"><i class="bi ${icon} me-2"></i>${item.label}</li>`;
+    }).join('');
 }
 
 function loadSettingsForm() {
     const secret = document.getElementById('paystackSecretKey');
     const publicKey = document.getElementById('paystackPublicKey');
+    const secretHint = document.getElementById('paystackSecretHint');
     const currency = document.getElementById('currencySelect');
     const sms = document.getElementById('smsGatewaySelect');
     const router = document.getElementById('defaultRouterSelect');
+    const portalIspCode = document.getElementById('portalIspCode');
+    const portalLink = document.getElementById('portalLink');
+    const tenant = getActiveTenant();
 
-    if (secret) secret.value = config.paystackSecretKey || '';
+    if (portalIspCode) portalIspCode.value = tenant.slug || 'demo-isp';
+    if (portalLink) portalLink.value = getPortalLink(tenant.slug);
+    renderProductionChecklist();
+
+    if (secret) {
+        secret.value = '';
+        secret.placeholder = config.paystackSecretConfigured
+            ? 'Saved securely — enter a new key to replace'
+            : 'sk_test_...';
+    }
+    if (secretHint) {
+        secretHint.textContent = config.paystackSecretConfigured
+            ? 'Secret key is stored securely in Supabase (not in the browser).'
+            : 'Secret key is sent once to a Supabase Edge Function and never stored in the browser.';
+    }
     if (publicKey) publicKey.value = config.paystackPublicKey || '';
     if (currency) currency.value = config.currency || 'NGN';
     if (sms) sms.value = config.smsGateway || 'africa_talking';
@@ -3171,24 +5158,54 @@ function applyCurrency(value, options = {}) {
     return true;
 }
 
-function saveApiKeys() {
+async function saveApiKeys() {
     const secret = document.getElementById('paystackSecretKey')?.value.trim() || '';
     const publicKey = document.getElementById('paystackPublicKey')?.value.trim() || '';
 
-    if (!secret || !publicKey) {
-        showToast('Enter both Paystack secret and public keys', 'error');
+    if (!publicKey) {
+        showToast('Enter your Paystack public key', 'error');
         return;
     }
-    if (!secret.startsWith('sk_') || !publicKey.startsWith('pk_')) {
-        showToast('Use test keys that start with sk_ and pk_', 'warning');
+    if (!publicKey.startsWith('pk_')) {
+        showToast('Public key must start with pk_', 'warning');
     }
 
-    config.paystackSecretKey = secret;
     config.paystackPublicKey = publicKey;
+    config.paystackSecretKey = '';
     config.settingsUpdatedAt = new Date().toISOString();
+
+    if (isSupabaseBackend()) {
+        if (!secret && !config.paystackSecretConfigured) {
+            showToast('Enter your Paystack secret key the first time you save.', 'error');
+            return;
+        }
+        if (secret) {
+            if (!secret.startsWith('sk_')) {
+                showToast('Secret key must start with sk_', 'warning');
+            }
+            try {
+                showToast('Saving Paystack secret securely…', 'info');
+                await window.PaystackAPI.saveSecretKey(secret);
+                config.paystackSecretConfigured = true;
+                document.getElementById('paystackSecretKey').value = '';
+            } catch (err) {
+                console.error(err);
+                showToast(err?.message || 'Could not save Paystack secret', 'error');
+                return;
+            }
+        }
+    } else if (secret) {
+        config.paystackSecretKey = secret;
+        config.paystackSecretConfigured = true;
+    } else if (!config.paystackSecretConfigured) {
+        showToast('Enter your Paystack secret key', 'error');
+        return;
+    }
+
     updateSettingsSummary();
-    addDashboardLog('Paystack API keys updated', 'info');
-    showToast('API keys saved locally', 'success');
+    loadSettingsForm();
+    addDashboardLog('Paystack keys updated', 'info');
+    showToast('Paystack keys saved', 'success');
     schedulePersistAppState();
 }
 
@@ -3221,11 +5238,6 @@ function updateCurrency() {
 // INITIALIZATION
 // ================================================================
 function initAppShell() {
-    const loginForm = document.getElementById('loginForm');
-    const signupForm = document.getElementById('signupForm');
-    if (loginForm) loginForm.addEventListener('submit', handleLoginSubmit);
-    if (signupForm) signupForm.addEventListener('submit', handleSignupSubmit);
-
     const logoutConfirmBtn = document.getElementById('logoutConfirmBtn');
     if (logoutConfirmBtn) {
         logoutConfirmBtn.addEventListener('click', performLogout);
@@ -3298,11 +5310,27 @@ window.resetStoredAppState = resetStoredAppState;
 window.persistAppState = persistAppState;
 window.formatCurrency = formatCurrency;
 
-function bootApp() {
+async function bootApp() {
     const restored = loadAppState();
     if (restored) {
         applyCurrency(config.currency || 'NGN', { showToast: false, refreshUI: false });
     }
+
+    if (isSupabaseBackend()) {
+        try {
+            const remote = await window.SupabaseAPI.tryRestoreSession();
+            if (remote) {
+                await window.SupabaseAPI.hydrateAppFromRemote(remote.tenantId, appData, config);
+                appData.isLoggedIn = true;
+                appData.session = remote.session;
+                window.SupabaseAPI.setActiveTenantId(remote.tenantId);
+                applyCurrency(config.currency || 'NGN', { showToast: false, refreshUI: false });
+            }
+        } catch (err) {
+            console.warn('Supabase session restore failed', err);
+        }
+    }
+
     if (!Array.isArray(appData.routers)) appData.routers = [];
     appData.routers.forEach(ensureRouterConfig);
     syncRouterIdCounter();
@@ -3310,6 +5338,8 @@ function bootApp() {
     initAppShell();
     if (appData.isLoggedIn) {
         showDashboard({ welcomeMessage: null, resetLog: false });
+    } else if (typeof tryRestorePortalOnBoot === 'function' && tryRestorePortalOnBoot()) {
+        /* customer portal restored */
     }
 }
 
