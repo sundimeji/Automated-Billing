@@ -57,6 +57,8 @@
         .landing-nav .nav-links .btn-login:hover { background: var(--accent); color: white; }
         .landing-nav .nav-links .btn-trial { background: var(--accent); border: none; color: white; padding: 8px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; }
         .landing-nav .nav-links .btn-trial:hover { background: #2a6bb5; transform: translateY(-2px); }
+        .landing-nav .nav-links .btn-portal { background: rgba(46, 204, 113, 0.12); border: 2px solid var(--success); color: white; padding: 8px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .landing-nav .nav-links .btn-portal:hover { background: rgba(46, 204, 113, 0.25); color: white; }
 
         /* Hero */
         .hero-section {
@@ -89,6 +91,7 @@
         .hero-section .btn-primary-custom:hover { background: #2a6bb5; transform: translateY(-3px); box-shadow: 0 10px 30px rgba(58, 123, 213, 0.3); }
         .hero-section .btn-outline-custom { background: transparent; border: 2px solid rgba(255,255,255,0.3); color: white; padding: 14px 40px; border-radius: 10px; font-weight: 600; cursor: pointer; }
         .hero-section .btn-outline-custom:hover { background: rgba(255,255,255,0.1); border-color: white; }
+        .hero-section .btn-admin-hero { background: #2a6bb5; }
 
         /* Features */
         .features-section { padding: 80px 0; background: white; scroll-margin-top: 80px; color: #1a1a2e; }
@@ -160,6 +163,7 @@
         .landing-footer .links { display: flex; justify-content: center; gap: 30px; margin: 20px 0; flex-wrap: wrap; }
         .landing-footer .links a { color: rgba(255,255,255,0.6); text-decoration: none; cursor: pointer; }
         .landing-footer .links a:hover { color: white; }
+        .landing-footer .links .btn-portal { background: transparent; border: none; padding: 0; font-weight: 500; white-space: normal; }
 
         /* Login Modal */
         .login-modal .modal-content { border-radius: 20px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.3); padding: 10px; }
@@ -276,6 +280,7 @@
             .hero-stats .stat { text-align: left; }
             .landing-nav .nav-links { gap: 8px; flex-wrap: wrap; }
             .landing-nav .nav-links a { font-size: 0.75rem; padding: 6px 12px; display: none; }
+            .landing-nav .nav-links .btn-portal,
             .landing-nav .nav-links .btn-login, 
             .landing-nav .nav-links .btn-trial { display: inline-block; padding: 5px 10px; font-size: 0.7rem; }
             .landing-nav .brand { font-size: 1.2rem; }
@@ -438,6 +443,7 @@
         @media (max-width: 480px) {
             .hero-section h1 { font-size: 1.6rem; }
             .hero-section p { font-size: 0.9rem; }
+            .landing-nav .nav-links .btn-portal,
             .landing-nav .nav-links .btn-login,
             .landing-nav .nav-links .btn-trial { padding: 4px 8px; font-size: 0.65rem; }
             
@@ -555,7 +561,7 @@
                 <a href="#" onclick="scrollToSection('screens', event)">Screens</a>
                 <a href="#" onclick="scrollToSection('pricing', event)">Pricing</a>
                 <a href="#" onclick="scrollToSection('contact', event)">Contact</a>
-                <a href="#" onclick="openCustomerPortal(); return false;">Customer Portal</a>
+                <a href="#" class="btn-portal" onclick="openCustomerPortal(); return false;"><i class="bi bi-person-badge"></i> Customer Portal</a>
                 <a href="#" class="btn-login" onclick="openLoginModal(); return false;"><i class="bi bi-box-arrow-in-right"></i> Admin Log In</a>
                 <a href="#" class="btn-trial" onclick="openSignupModal(); return false;"><i class="bi bi-person-plus"></i> Start Free Trial</a>
             </div>
@@ -570,8 +576,9 @@
                     <h1>Run billing without the <span>admin work</span>.</h1>
                     <p>ISP Billing brings subscriber accounts, prepaid vouchers, MikroTik, Ruijie and Omada router control, customer payments across Nigeria, Ghana and Kenya, SMS alerts and settlement tracking into one working dashboard.</p>
                     <div class="btn-group">
-                        <button class="btn-primary-custom" onclick="openSignupModal()"><i class="bi bi-play-circle"></i> Start 14-day free trial</button>
-                        <button class="btn-outline-custom" onclick="scrollToSection('features')">Learn More <i class="bi bi-arrow-right"></i></button>
+                        <button type="button" class="btn-primary-custom" onclick="openCustomerPortal()"><i class="bi bi-person-badge"></i> Customer Portal</button>
+                        <button type="button" class="btn-primary-custom btn-admin-hero" onclick="openSignupModal()"><i class="bi bi-play-circle"></i> Start 14-day free trial</button>
+                        <button type="button" class="btn-outline-custom" onclick="scrollToSection('features')">Learn More <i class="bi bi-arrow-right"></i></button>
                     </div>
                     <div class="hero-stats">
                         <div class="stat"><div class="number">32</div><div class="label">Active ISP tenants</div></div>
@@ -863,7 +870,7 @@
                 <a href="#" onclick="scrollToSection('screens', event)">Screens</a>
                 <a href="#" onclick="scrollToSection('pricing', event)">Pricing</a>
                 <a href="#" onclick="scrollToSection('contact', event)">Contact</a>
-                <a href="#" onclick="openCustomerPortal(); return false;">Customer Portal</a>
+                <a href="#" class="btn-portal" onclick="openCustomerPortal(); return false;"><i class="bi bi-person-badge"></i> Customer Portal</a>
                 <a href="#" onclick="openLoginModal(); return false;">Admin Log In</a>
             </div>
             <p style="margin-top: 15px; font-size: 0.85rem;">&copy; 2026 Richie's ISP Billing. All rights reserved. Made with <i class="bi bi-heart-fill" style="color: #e74c3c;"></i> for ISPs in Africa.</p>
@@ -5304,6 +5311,8 @@ window.showToast = showToast;
 window.updateCurrency = updateCurrency;
 window.saveApiKeys = saveApiKeys;
 window.saveSystemConfiguration = saveSystemConfiguration;
+window.copyPortalLink = copyPortalLink;
+window.copyIspCode = copyIspCode;
 window.renderSettingsPage = renderSettingsPage;
 window.loadSettingsForm = loadSettingsForm;
 window.resetStoredAppState = resetStoredAppState;
