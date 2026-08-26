@@ -247,6 +247,12 @@
         .modal-content .form-label { color: #343a40; }
         .modal-content .modal-title { color: #1a1a2e; }
         .modal-content .modal-body { color: #212529; }
+        #subscriberModal .modal-body,
+        #subscriberModal .modal-content { overflow: visible; }
+        #subscriberModal select.form-select,
+        #paymentModal select.form-select { position: relative; z-index: 2; }
+        body.modal-open { overflow: hidden; }
+        body.dashboard-mode.modal-open .main-content { overflow: visible; }
         .toast .toast-body { color: #212529; }
         .text-muted { color: #5a6268 !important; }
         .form-control::placeholder { color: #6c757d; opacity: 1; }
@@ -1476,18 +1482,39 @@ window.SUPABASE_CONFIG = {
     }
 
     function defaultPackages(tenantId) {
-        return [
-            { id: 'p1', tenant_id: tenantId, name: 'Basic', speed_mbps: 10, duration_days: 30, price: 3000, is_active: true, description: 'Perfect for light browsing' },
-            { id: 'p2', tenant_id: tenantId, name: 'Standard', speed_mbps: 25, duration_days: 30, price: 5000, is_active: true, description: 'Great for streaming' },
-            { id: 'p3', tenant_id: tenantId, name: 'Premium', speed_mbps: 50, duration_days: 30, price: 7500, is_active: true, description: 'For heavy users' },
-            { id: 'p4', tenant_id: tenantId, name: 'Enterprise', speed_mbps: 100, duration_days: 30, price: 12500, is_active: true, description: 'Business grade' }
+        const templates = [
+            { name: 'Basic', speed_mbps: 10, duration_days: 30, price: 3000, is_active: true, description: 'Perfect for light browsing' },
+            { name: 'Standard', speed_mbps: 25, duration_days: 30, price: 5000, is_active: true, description: 'Great for streaming' },
+            { name: 'Premium', speed_mbps: 50, duration_days: 30, price: 7500, is_active: true, description: 'For heavy users' },
+            { name: 'Enterprise', speed_mbps: 100, duration_days: 30, price: 12500, is_active: true, description: 'Business grade' }
         ];
+        return templates.map(function (tpl) {
+            return {
+                id: randomId('p'),
+                tenant_id: tenantId,
+                name: tpl.name,
+                speed_mbps: tpl.speed_mbps,
+                duration_days: tpl.duration_days,
+                price: tpl.price,
+                is_active: tpl.is_active,
+                description: tpl.description
+            };
+        });
     }
 
     function defaultRouters(tenantId) {
-        return [
-            { id: 'r1', tenant_id: tenantId, name: 'Main Hotspot', type: 'mikrotik', host: '192.168.88.1', status: 'online', active_users: 0, last_seen: new Date().toISOString(), config_status: 'pending', config: { api_port: 8728, hotspot_ssid: 'ISP-Main', auto_sync_subscribers: true } }
-        ];
+        return [{
+            id: randomId('r'),
+            tenant_id: tenantId,
+            name: 'Main Hotspot',
+            type: 'mikrotik',
+            host: '192.168.88.1',
+            status: 'online',
+            active_users: 0,
+            last_seen: new Date().toISOString(),
+            config_status: 'pending',
+            config: { api_port: 8728, hotspot_ssid: 'ISP-Main', auto_sync_subscribers: true }
+        }];
     }
 
     function mapPackageRow(row) {
@@ -1796,6 +1823,55 @@ window.SUPABASE_CONFIG = {
         };
     }
 
+    async function ensureDefaultTenantCatalog(tenantId) {
+        const sb = getClient();
+        if (!sb || !tenantId) return false;
+
+        const { count: packageCount, error: packageCountError } = await sb
+            .from('packages')
+            .select('*', { count: 'exact', head: true })
+            .eq('tenant_id', tenantId);
+        if (packageCountError) throw packageCountError;
+
+        if (!packageCount) {
+            const { error } = await sb.from('packages').insert(defaultPackages(tenantId));
+            if (error) throw error;
+        }
+
+        const { count: routerCount, error: routerCountError } = await sb
+            .from('routers')
+            .select('*', { count: 'exact', head: true })
+            .eq('tenant_id', tenantId);
+        if (routerCountError) throw routerCountError;
+
+        if (!routerCount) {
+            const routers = defaultRouters(tenantId);
+            const { error } = await sb.from('routers').insert(routers.map(function (r) {
+                return { ...r, config: r.config };
+            }));
+            if (error) throw error;
+        }
+
+        return true;
+    }
+
+    async function reloadTenantCatalog(tenantId, appDataRef) {
+        const sb = getClient();
+        if (!sb || !tenantId) return false;
+
+        const [packagesRes, routersRes] = await Promise.all([
+            sb.from('packages').select('*').eq('tenant_id', tenantId),
+            sb.from('routers').select('*').eq('tenant_id', tenantId)
+        ]);
+
+        if (packagesRes.error) throw packagesRes.error;
+        if (routersRes.error) throw routersRes.error;
+
+        appDataRef.packages = (packagesRes.data || []).map(mapPackageRow);
+        appDataRef.routers = (routersRes.data || []).map(mapRouterRow);
+        return true;
+    }
+
     async function hydrateAppFromRemote(tenantId, appDataRef, configRef) {
         const sb = getClient();
         if (!sb) return false;
@@ -1832,6 +1908,11 @@ window.SUPABASE_CONFIG = {
         appDataRef.routers = (routersRes.data || []).map(mapRouterRow);
         appDataRef.subscribers = (subscribersRes.data || []).map(mapSubscriberRow);
         appDataRef.transactions = (transactionsRes.data || []).map(mapTransactionRow);
+
+        if (!appDataRef.packages.length || !appDataRef.routers.length) {
+            await ensureDefaultTenantCatalog(tenantId);
+            await reloadTenantCatalog(tenantId, appDataRef);
+        }
 
         const settings = settingsRes.data;
         if (settings?.config && configRef) {
@@ -2005,11 +2086,14 @@ window.SUPABASE_CONFIG = {
         tryRestoreSession,
         hydrateAppFromRemote,
         reloadSubscribers,
+        reloadTenantCatalog,
+        ensureDefaultTenantCatalog,
         pushAppState,
         schedulePushAppState,
         setActiveTenantId,
         getActiveTenantId,
-        deleteRow
+        deleteRow,
+        randomId
     };
 })();
 
@@ -2863,6 +2947,17 @@ function isSupabaseBackend() {
     return window.SupabaseAPI && window.SupabaseAPI.isEnabled();
 }
 
+function generateEntityId(prefix) {
+    if (isSupabaseBackend() && window.SupabaseAPI.randomId) {
+        return window.SupabaseAPI.randomId(prefix);
+    }
+    if (prefix === 'p') return 'p' + appData.packageIdCounter++;
+    if (prefix === 's') return 's' + appData.subscriberIdCounter++;
+    if (prefix === 'r') return 'r' + appData.routerIdCounter++;
+    if (prefix === 'txn') return 'txn_' + appData.transactionIdCounter++;
+    return prefix + Date.now();
+}
+
 function persistAppState() {
     const snapshot = getPersistableAppData();
     try {
@@ -2951,7 +3046,10 @@ function resetStoredAppState() {
 // ================================================================
 // UTILITY FUNCTIONS
 // ================================================================
-function formatCurrency(amount) { return `${config.currencySymbol}${amount.toFixed(2)}`; }
+function formatCurrency(amount) {
+    const value = Number(amount);
+    return `${config.currencySymbol}${(Number.isFinite(value) ? value : 0).toFixed(2)}`;
+}
 function getPackage(id) { return appData.packages.find(p => p.id === id); }
 function getSubscriber(id) { return appData.subscribers.find(s => s.id === id); }
 function getPackageName(id) { const p = getPackage(id); return p ? p.name : 'None'; }
@@ -3180,6 +3278,9 @@ async function handleSignup() {
             }
             await window.SupabaseAPI.hydrateAppFromRemote(result.tenantId, appData, config);
             applyCurrency(config.currency || 'NGN', { showToast: false, refreshUI: false });
+            if (!Array.isArray(appData.routers)) appData.routers = [];
+            appData.routers.forEach(ensureRouterConfig);
+            syncRouterIdCounter();
             document.getElementById('loginEmail').value = email;
             document.getElementById('loginPassword').value = password;
             const firstName = name.split(/\s+/)[0] || name;
@@ -3219,6 +3320,35 @@ function getActiveTenantId() {
     if (appData.session && appData.session.tenantId) return appData.session.tenantId;
     const tenant = getActiveTenant();
     return tenant.id || 't1';
+}
+
+function getTenantPackages(includeInactiveId = null) {
+    const tenantId = getActiveTenantId();
+    return (appData.packages || []).filter(function (p) {
+        if (p.tenant_id && p.tenant_id !== tenantId) return false;
+        return p.is_active !== false || p.id === includeInactiveId;
+    });
+}
+
+function getTenantRouters() {
+    const tenantId = getActiveTenantId();
+    return (appData.routers || []).filter(function (r) {
+        return !r.tenant_id || r.tenant_id === tenantId;
+    });
+}
+
+async function refreshTenantCatalogIfNeeded() {
+    if (!isSupabaseBackend()) return;
+    const tenantId = getActiveTenantId();
+    if (!tenantId || !window.SupabaseAPI) return;
+    if (getTenantPackages().length && getTenantRouters().length) return;
+    try {
+        await window.SupabaseAPI.ensureDefaultTenantCatalog(tenantId);
+        await window.SupabaseAPI.reloadTenantCatalog(tenantId, appData);
+        if (Array.isArray(appData.routers)) appData.routers.forEach(ensureRouterConfig);
+    } catch (err) {
+        console.warn('Could not refresh tenant packages/routers', err);
+    }
 }
 
 function getMonthRevenue() {
@@ -3334,6 +3464,13 @@ async function performLogout() {
     if (isSupabaseBackend()) {
         try { await window.SupabaseAPI.signOut(); } catch (e) { console.warn(e); }
     }
+
+    appData.session = { userName: 'Demo Admin', tenantName: 'Demo ISP' };
+    appData.packages = [];
+    appData.subscribers = [];
+    appData.routers = [];
+    appData.transactions = [];
+    appData.tenants = [{ id: 't1', name: 'Demo ISP', slug: 'demo-isp', email: 'admin@ispbilling.com', phone: '+234 80 123 4567', is_active: true }];
 
     if (loginModalInstance) {
         try { loginModalInstance.hide(); } catch (e) { /* ignore */ }
@@ -3485,7 +3622,8 @@ function populateSubscriberFilterPackages() {
 function populateSubscriberRouterSelect(selectedId = '') {
     const select = document.getElementById('subRouter');
     if (!select) return;
-    select.innerHTML = '<option value="">Select hotspot router...</option>' + appData.routers.map(r =>
+    const routers = getTenantRouters();
+    select.innerHTML = '<option value="">Select hotspot router...</option>' + routers.map(r =>
         `<option value="${r.id}">${r.name} (${ROUTER_TYPE_LABELS[r.type] || r.type})</option>`
     ).join('');
     if (selectedId && [...select.options].some(opt => opt.value === selectedId)) {
@@ -3496,7 +3634,7 @@ function populateSubscriberRouterSelect(selectedId = '') {
 function populateSubscriberPackageSelect(selectedId = '', includeInactiveId = null) {
     const pkgSelect = document.getElementById('subPackage');
     if (!pkgSelect) return;
-    const packages = appData.packages.filter(p => p.is_active || p.id === includeInactiveId);
+    const packages = getTenantPackages(includeInactiveId);
     pkgSelect.innerHTML = '<option value="">Select package...</option>' + packages.map(p =>
         `<option value="${p.id}">${p.name} (${formatCurrency(p.price)} · ${p.duration_days} days)</option>`
     ).join('');
@@ -3578,9 +3716,11 @@ function updateSubscriberExpiryDefault() {
     expiresEl.value = toDatetimeLocalValue(expiresAt.toISOString());
 }
 
-function openSubscriberModal(subscriberId = null) {
+async function openSubscriberModal(subscriberId = null) {
     const modal = getSubscriberModal();
     if (!modal) return;
+
+    await refreshTenantCatalogIfNeeded();
 
     const isEdit = Boolean(subscriberId);
     document.getElementById('subEditId').value = subscriberId || '';
@@ -3623,6 +3763,14 @@ function openSubscriberModal(subscriberId = null) {
     if (packageSelect) {
         packageSelect.onchange = updateSubscriberExpiryDefault;
     }
+
+    if (!isEdit && getTenantPackages().length === 0) {
+        showToast('No packages found for this ISP. Add a package first or refresh the page.', 'warning');
+    }
+    if (!isEdit && getTenantRouters().length === 0) {
+        showToast('No hotspot router found. Add a router under Routers first.', 'warning');
+    }
+
     modal.show();
 }
 
@@ -3688,7 +3836,7 @@ async function saveSubscriber() {
             expiresAt.setDate(expiresAt.getDate() + pkg.duration_days);
         }
         appData.subscribers.push({
-            id: 's' + appData.subscriberIdCounter++,
+            id: generateEntityId('s'),
             tenant_id: getActiveTenantId(),
             package_id: packageId,
             router_id: routerId,
@@ -3880,7 +4028,7 @@ function savePackage() {
         }
     } else {
         appData.packages.push({
-            id: 'p' + appData.packageIdCounter++,
+            id: generateEntityId('p'),
             tenant_id: getActiveTenantId(),
             name: name,
             speed_mbps: speed,
@@ -4153,7 +4301,7 @@ function saveRouter() {
         addDashboardLog(`Updated router ${name}`, 'info');
     } else {
         const newRouter = {
-            id: 'r' + appData.routerIdCounter++,
+            id: generateEntityId('r'),
             tenant_id: getActiveTenantId(),
             name,
             type,
@@ -4675,7 +4823,7 @@ function executePayment(subscriberId, packageId, amount, method, options = {}) {
     if (!subscriber || !pkg) { showToast('Invalid subscriber or package', 'error'); return; }
 
     const transaction = {
-        id: 'txn_' + appData.transactionIdCounter++,
+        id: generateEntityId('txn'),
         subscriber_id: subscriberId,
         subscriber_name: subscriber.full_name,
         package_id: packageId,
