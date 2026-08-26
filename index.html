@@ -1234,7 +1234,7 @@
                     <div class="form-card">
                         <h5><i class="bi bi-person-badge"></i> Customer Portal</h5>
                         <p class="text-muted small">Share this with subscribers so they can check plan status and expiry.</p>
-                        <div class="mb-3"><label class="form-label">ISP Code</label><div class="input-group"><input type="text" class="form-control" id="portalIspCode" readonly /><button type="button" class="btn btn-outline-secondary" onclick="copyIspCode()" title="Copy ISP code"><i class="bi bi-clipboard"></i></button></div></div>
+                        <div class="mb-3"><label class="form-label">ISP Code</label><div class="input-group"><input type="text" class="form-control" id="portalIspCode" readonly /><button type="button" class="btn btn-outline-secondary" onclick="copyIspCode()" title="Copy ISP code"><i class="bi bi-clipboard"></i></button></div><small class="text-muted">Customers must enter this exact code at portal login — not your company display name.</small></div>
                         <div class="mb-3"><label class="form-label">Portal link</label><div class="input-group"><input type="text" class="form-control" id="portalLink" readonly /><button type="button" class="btn btn-outline-secondary" onclick="copyPortalLink()" title="Copy portal link"><i class="bi bi-clipboard"></i></button></div><small class="text-muted">Share this URL with customers. They can also use <strong>Customer Portal</strong> on your home page.</small></div>
                     </div>
                 </div>
@@ -1474,6 +1474,17 @@ window.SUPABASE_CONFIG = {
             .slice(0, 48) || 'isp';
     }
 
+    async function ensureUniqueSlug(sb, baseSlug, tenantId) {
+        let slug = slugify(baseSlug);
+        for (let attempt = 0; attempt < 20; attempt += 1) {
+            const candidate = attempt === 0 ? slug : slug.slice(0, 40) + '-' + (attempt + 1);
+            const { data, error } = await sb.from('tenants').select('id').eq('slug', candidate).maybeSingle();
+            if (error) throw error;
+            if (!data || data.id === tenantId) return candidate;
+        }
+        return slugify(baseSlug).slice(0, 40) + '-' + randomId('').slice(0, 6);
+    }
+
     function randomId(prefix) {
         if (typeof crypto !== 'undefined' && crypto.randomUUID) {
             return prefix + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
@@ -1555,7 +1566,7 @@ window.SUPABASE_CONFIG = {
             email: row.email || '',
             phone: row.phone || '',
             username: row.username,
-            password_hash: row.password_hash || 'hashed',
+            password_hash: row.password_hash || '',
             status: row.status,
             expires_at: row.expires_at,
             created_at: row.created_at
@@ -1608,10 +1619,17 @@ window.SUPABASE_CONFIG = {
         }
 
         const tenantId = randomId('t');
+        const baseSlug = slugify(company);
+        let uniqueSlug;
+        try {
+            uniqueSlug = await ensureUniqueSlug(sb, baseSlug, tenantId);
+        } catch (err) {
+            return { ok: false, error: err.message || 'Could not generate ISP code' };
+        }
         const tenant = {
             id: tenantId,
             name: company,
-            slug: slugify(company),
+            slug: uniqueSlug,
             email: email,
             phone: phone,
             is_active: true
@@ -1945,22 +1963,93 @@ window.SUPABASE_CONFIG = {
         return true;
     }
 
+    function parseRpcPayload(data) {
+        if (!data) return null;
+        if (typeof data === 'string') {
+            try { return JSON.parse(data); } catch (e) { return null; }
+        }
+        return data;
+    }
+
+    async function upsertSubscriberDirect(subscriber) {
+        const sb = getClient();
+        const tenantId = subscriber?.tenant_id || activeTenantId;
+        if (!sb || !tenantId || !subscriber?.id) {
+            return { ok: false, error: 'Not connected to Supabase' };
+        }
+
+        const row = {
+            id: subscriber.id,
+            tenant_id: tenantId,
+            package_id: subscriber.package_id || null,
+            router_id: subscriber.router_id || null,
+            full_name: subscriber.full_name,
+            email: subscriber.email || '',
+            phone: subscriber.phone || '',
+            username: subscriber.username,
+            status: subscriber.status || 'active',
+            expires_at: subscriber.expires_at || null,
+            created_at: subscriber.created_at || new Date().toISOString()
+        };
+        if (subscriber.password_hash && subscriber.password_hash.indexOf('sha256:') === 0) {
+            row.password_hash = subscriber.password_hash;
+        }
+
+        const { error } = await sb.from('subscribers').upsert(row);
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, tenant_id: tenantId };
+    }
+
+    async function upsertSubscriber(subscriber, plainPassword) {
+        const sb = getClient();
+        if (!sb || !subscriber?.id) {
+            return { ok: false, error: 'Not connected to Supabase' };
+        }
+
+        const payload = {
+            id: subscriber.id,
+            package_id: subscriber.package_id || '',
+            router_id: subscriber.router_id || '',
+            full_name: subscriber.full_name,
+            email: subscriber.email || '',
+            phone: subscriber.phone || '',
+            username: subscriber.username,
+            status: subscriber.status || 'active',
+            expires_at: subscriber.expires_at || '',
+            created_at: subscriber.created_at || ''
+        };
+
+        const { data, error } = await sb.rpc('admin_save_subscriber', {
+            p_subscriber: payload,
+            p_password: plainPassword || null
+        });
+
+        if (error) {
+            if (/Could not find the function|does not exist|PGRST202/i.test(error.message || '')) {
+                return upsertSubscriberDirect(subscriber);
+            }
+            return { ok: false, error: error.message };
+        }
+
+        const result = parseRpcPayload(data);
+        if (!result || result.ok === false) {
+            return { ok: false, error: (result && result.error) || 'Could not save subscriber for portal login' };
+        }
+
+        return {
+            ok: true,
+            tenant_id: result.tenant_id,
+            slug: result.slug || ''
+        };
+    }
+
     async function pushAppState(appDataSnapshot, configSnapshot) {
         const sb = getClient();
         if (!sb || !activeTenantId) return;
 
         const tenantId = activeTenantId;
-        const tenant = (appDataSnapshot.tenants || [])[0];
-        if (tenant) {
-            await sb.from('tenants').upsert({
-                id: tenantId,
-                name: tenant.name,
-                slug: tenant.slug || slugify(tenant.name),
-                email: tenant.email,
-                phone: tenant.phone,
-                is_active: tenant.is_active !== false
-            });
-        }
+        // Never upsert tenant metadata from bulk sync — stale local demo data
+        // was overwriting new tenant slugs with demo-isp and breaking portal login.
 
         const packages = (appDataSnapshot.packages || []).filter(p => p.tenant_id === tenantId).map(p => ({
             id: p.id,
@@ -1986,20 +2075,25 @@ window.SUPABASE_CONFIG = {
             config: r.config || {}
         }));
 
-        const subscribers = (appDataSnapshot.subscribers || []).filter(s => s.tenant_id === tenantId).map(s => ({
-            id: s.id,
-            tenant_id: tenantId,
-            package_id: s.package_id,
-            router_id: s.router_id,
-            full_name: s.full_name,
-            email: s.email || '',
-            phone: s.phone || '',
-            username: s.username,
-            password_hash: s.password_hash || 'hashed',
-            status: s.status,
-            expires_at: s.expires_at,
-            created_at: s.created_at || new Date().toISOString()
-        }));
+        const subscribers = (appDataSnapshot.subscribers || []).filter(s => s.tenant_id === tenantId).map(s => {
+            const row = {
+                id: s.id,
+                tenant_id: tenantId,
+                package_id: s.package_id,
+                router_id: s.router_id,
+                full_name: s.full_name,
+                email: s.email || '',
+                phone: s.phone || '',
+                username: s.username,
+                status: s.status,
+                expires_at: s.expires_at,
+                created_at: s.created_at || new Date().toISOString()
+            };
+            if (s.password_hash && s.password_hash.indexOf('sha256:') === 0) {
+                row.password_hash = s.password_hash;
+            }
+            return row;
+        });
 
         const transactions = (appDataSnapshot.transactions || []).map(t => ({
             id: t.id,
@@ -2088,6 +2182,7 @@ window.SUPABASE_CONFIG = {
         reloadSubscribers,
         reloadTenantCatalog,
         ensureDefaultTenantCatalog,
+        upsertSubscriber,
         pushAppState,
         schedulePushAppState,
         setActiveTenantId,
@@ -2947,6 +3042,40 @@ function isSupabaseBackend() {
     return window.SupabaseAPI && window.SupabaseAPI.isEnabled();
 }
 
+function ensureSupabaseTenantContext() {
+    if (!isSupabaseBackend()) return;
+    const tenantId = getActiveTenantId();
+    if (tenantId && window.SupabaseAPI.setActiveTenantId) {
+        window.SupabaseAPI.setActiveTenantId(tenantId);
+    }
+}
+
+async function hashPortalPassword(password) {
+    if (!password) return '';
+    if (isSupabaseBackend()) {
+        const sb = window.SupabaseAPI.getClient();
+        if (sb) {
+            const { data, error } = await sb.rpc('portal_password_hash', { p_password: password });
+            if (!error && typeof data === 'string' && data.indexOf('sha256:') === 0) {
+                return data;
+            }
+            if (error) console.warn('portal_password_hash RPC failed, using client hash', error);
+        }
+    }
+    if (window.PortalAPI && window.PortalAPI.hashPassword) {
+        return window.PortalAPI.hashPassword(password);
+    }
+    if (!window.crypto || !window.crypto.subtle) {
+        throw new Error('Password hashing requires a secure connection (HTTPS).');
+    }
+    const data = new TextEncoder().encode(password);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    const hex = Array.from(new Uint8Array(hash)).map(function (b) {
+        return b.toString(16).padStart(2, '0');
+    }).join('');
+    return 'sha256:' + hex;
+}
+
 function generateEntityId(prefix) {
     if (isSupabaseBackend() && window.SupabaseAPI.randomId) {
         return window.SupabaseAPI.randomId(prefix);
@@ -2972,6 +3101,7 @@ function persistAppState() {
         showToast('Could not save data locally (storage may be full)', 'warning');
     }
     if (isSupabaseBackend() && appData.isLoggedIn) {
+        ensureSupabaseTenantContext();
         window.SupabaseAPI.schedulePushAppState(snapshot, getSafeConfigSnapshot());
     }
 }
@@ -3019,6 +3149,7 @@ function loadAppState() {
 
         appData.cronInterval = null;
         appData.cronNextRunAt = null;
+        applyTenantScopeFromSession();
         return true;
     } catch (err) {
         console.warn('Unable to load saved data', err);
@@ -3050,8 +3181,18 @@ function formatCurrency(amount) {
     const value = Number(amount);
     return `${config.currencySymbol}${(Number.isFinite(value) ? value : 0).toFixed(2)}`;
 }
-function getPackage(id) { return appData.packages.find(p => p.id === id); }
-function getSubscriber(id) { return appData.subscribers.find(s => s.id === id); }
+function getPackage(id) {
+    const tenantId = getActiveTenantId();
+    return appData.packages.find(function (p) {
+        return p.id === id && (!p.tenant_id || p.tenant_id === tenantId);
+    });
+}
+function getSubscriber(id) {
+    const tenantId = getActiveTenantId();
+    return appData.subscribers.find(function (s) {
+        return s.id === id && (!s.tenant_id || s.tenant_id === tenantId);
+    });
+}
 function getPackageName(id) { const p = getPackage(id); return p ? p.name : 'None'; }
 function getStatusBadge(status) { const map = { active: 'success', expired: 'danger', suspended: 'warning' }; return `<span class="status-badge ${status}">${status.toUpperCase()}</span>`; }
 function formatDate(dateStr) { const d = new Date(dateStr); return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
@@ -3188,6 +3329,7 @@ function completeAuthSession(session, welcomeMessage) {
     if (loginModalInstance) loginModalInstance.hide();
     appData.isLoggedIn = true;
     appData.session = session;
+    applyTenantScopeFromSession();
     if (session.tenantId && isSupabaseBackend()) {
         window.SupabaseAPI.setActiveTenantId(session.tenantId);
     }
@@ -3312,8 +3454,74 @@ async function handleSignup() {
 // ================================================================
 // LANDING PAGE FUNCTIONS
 // ================================================================
+function applyTenantScopeFromSession() {
+    const tenantId = appData.session && appData.session.tenantId;
+    if (!tenantId) return;
+
+    if (Array.isArray(appData.tenants)) {
+        const match = appData.tenants.find(function (t) { return t.id === tenantId; });
+        appData.tenants = match ? [match] : appData.tenants.filter(function (t) { return t.id === tenantId; });
+    }
+    if (Array.isArray(appData.subscribers)) {
+        appData.subscribers = appData.subscribers.filter(function (s) {
+            return !s.tenant_id || s.tenant_id === tenantId;
+        });
+    }
+    if (Array.isArray(appData.packages)) {
+        appData.packages = appData.packages.filter(function (p) {
+            return !p.tenant_id || p.tenant_id === tenantId;
+        });
+    }
+    if (Array.isArray(appData.routers)) {
+        appData.routers = appData.routers.filter(function (r) {
+            return !r.tenant_id || r.tenant_id === tenantId;
+        });
+    }
+    if (Array.isArray(appData.transactions)) {
+        appData.transactions = appData.transactions.filter(function (t) {
+            return !t.tenant_id || t.tenant_id === tenantId;
+        });
+    }
+}
+
+async function ensureTenantRecordSynced() {
+    if (!isSupabaseBackend()) return;
+    const tenantId = getActiveTenantId();
+    if (!tenantId) return;
+
+    const match = (appData.tenants || []).find(function (t) {
+        return t.id === tenantId && t.slug;
+    });
+    if (match) return;
+
+    const sb = window.SupabaseAPI.getClient();
+    if (!sb) return;
+
+    try {
+        const { data, error } = await sb.from('tenants').select('*').eq('id', tenantId).maybeSingle();
+        if (error || !data) return;
+        appData.tenants = [{
+            id: data.id,
+            name: data.name,
+            slug: data.slug,
+            email: data.email || '',
+            phone: data.phone || '',
+            is_active: data.is_active !== false
+        }];
+        if (appData.session) appData.session.tenantName = data.name;
+    } catch (err) {
+        console.warn('Could not refresh tenant record', err);
+    }
+}
+
 function getActiveTenant() {
-    return appData.tenants[0] || { id: 't1', name: 'Demo ISP' };
+    const tenantId = appData.session && appData.session.tenantId;
+    if (tenantId && Array.isArray(appData.tenants)) {
+        const match = appData.tenants.find(function (t) { return t.id === tenantId; });
+        if (match) return match;
+    }
+    if (appData.tenants && appData.tenants[0]) return appData.tenants[0];
+    return { id: 't1', name: 'Demo ISP', slug: 'demo-isp', email: 'admin@ispbilling.com', phone: '+234 80 123 4567', is_active: true };
 }
 
 function getActiveTenantId() {
@@ -3334,6 +3542,13 @@ function getTenantRouters() {
     const tenantId = getActiveTenantId();
     return (appData.routers || []).filter(function (r) {
         return !r.tenant_id || r.tenant_id === tenantId;
+    });
+}
+
+function getTenantSubscribers() {
+    const tenantId = getActiveTenantId();
+    return (appData.subscribers || []).filter(function (s) {
+        return !s.tenant_id || s.tenant_id === tenantId;
     });
 }
 
@@ -3599,8 +3814,10 @@ function manualRefreshDashboard() {
 // ================================================================
 function isUsernameTaken(username, ignoreSubscriberId = null) {
     const normalized = username.trim().toLowerCase();
-    return appData.subscribers.some(s => {
+    const tenantId = getActiveTenantId();
+    return appData.subscribers.some(function (s) {
         if (ignoreSubscriberId && s.id === ignoreSubscriberId) return false;
+        if (s.tenant_id && s.tenant_id !== tenantId) return false;
         return s.username.trim().toLowerCase() === normalized;
     });
 }
@@ -3663,7 +3880,7 @@ function renderSubscribers() {
     const search = searchEl.value.toLowerCase().trim();
     const statusFilter = statusEl.value;
     const pkgFilter = document.getElementById('subFilterPackage').value;
-    const filtered = appData.subscribers.filter(s => {
+    const filtered = getTenantSubscribers().filter(function (s) {
         const matchSearch = !search || s.full_name.toLowerCase().includes(search) || s.username.toLowerCase().includes(search) || (s.email && s.email.toLowerCase().includes(search)) || (s.phone && s.phone.includes(search));
         const matchStatus = statusFilter === 'all' || s.status === statusFilter;
         const matchPkg = pkgFilter === 'all' || s.package_id === pkgFilter;
@@ -3679,13 +3896,14 @@ function renderSubscribers() {
         <button type="button" class="btn btn-sm btn-outline-success" title="Renew" onclick="renewSubscriber('${s.id}')"><i class="bi bi-arrow-repeat"></i></button>
         <button type="button" class="btn btn-sm btn-outline-danger" title="Delete" onclick="deleteSubscriber('${s.id}')"><i class="bi bi-trash"></i></button></td></tr>
     `).join('')
-        : `<tr><td colspan="7" class="text-center text-muted py-4">${appData.subscribers.length ? 'No subscribers match your filters' : 'No subscribers yet — click Add Subscriber to create one'}</td></tr>`;
+        : `<tr><td colspan="7" class="text-center text-muted py-4">${getTenantSubscribers().length ? 'No subscribers match your filters' : 'No subscribers yet — click Add Subscriber to create one'}</td></tr>`;
 
     const countEl = document.getElementById('subscriberResultCount');
+    const tenantSubs = getTenantSubscribers();
     if (countEl) {
-        countEl.textContent = filtered.length === appData.subscribers.length
+        countEl.textContent = filtered.length === tenantSubs.length
             ? `${filtered.length} subscriber${filtered.length === 1 ? '' : 's'}`
-            : `Showing ${filtered.length} of ${appData.subscribers.length}`;
+            : `Showing ${filtered.length} of ${tenantSubs.length}`;
     }
 }
 
@@ -3774,6 +3992,38 @@ async function openSubscriberModal(subscriberId = null) {
     modal.show();
 }
 
+async function verifySubscriberPortalLogin(subscriber, password, slugOverride) {
+    if (!isSupabaseBackend() || !password || !subscriber) return { ok: true };
+    const slug = slugOverride || getActiveTenant().slug;
+    if (!slug) {
+        return { ok: false, error: 'ISP code missing for this tenant. Open Settings and refresh the page.' };
+    }
+    const sb = window.SupabaseAPI.getClient();
+    if (!sb) return { ok: true };
+
+    const { data, error } = await sb.rpc('portal_login', {
+        p_tenant_slug: slug,
+        p_username: subscriber.username,
+        p_password: password
+    });
+
+    if (error) {
+        return { ok: false, error: error.message || 'Portal login check failed.' };
+    }
+
+    let payload = data;
+    if (typeof payload === 'string') {
+        try { payload = JSON.parse(payload); } catch (e) { payload = null; }
+    }
+
+    if (payload && payload.ok) return { ok: true, slug: slug };
+    return {
+        ok: false,
+        error: (payload && payload.error) || 'Portal login check failed for this subscriber.',
+        slug: slug
+    };
+}
+
 async function saveSubscriber() {
     const id = document.getElementById('subEditId').value;
     const name = document.getElementById('subName').value.trim();
@@ -3794,11 +4044,16 @@ async function saveSubscriber() {
         showToast('That username is already in use', 'error');
         return;
     }
+    ensureSupabaseTenantContext();
+
     let passwordHash = null;
-    if (password && window.PortalAPI && window.PortalAPI.hashPassword) {
-        passwordHash = await window.PortalAPI.hashPassword(password);
-    } else if (password) {
-        passwordHash = 'hashed';
+    if (password) {
+        try {
+            passwordHash = await hashPortalPassword(password);
+        } catch (err) {
+            showToast(err?.message || 'Could not secure password for portal login.', 'error');
+            return;
+        }
     }
     if (id) {
         const s = getSubscriber(id);
@@ -3819,11 +4074,9 @@ async function saveSubscriber() {
                 s.expires_at = expiresAt.toISOString();
             }
             if (passwordHash) s.password_hash = passwordHash;
-            showToast('Subscriber updated successfully!', 'success');
-            addDashboardLog(`Updated subscriber ${name} (${username})`, 'info');
         }
     } else {
-        if (!password) { showToast('Password is required for new subscribers', 'error'); return; }
+        if (!password || !passwordHash) { showToast('Password is required for new subscribers', 'error'); return; }
         let expiresAt;
         if (expiresValue) {
             expiresAt = new Date(expiresValue);
@@ -3835,7 +4088,7 @@ async function saveSubscriber() {
             expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + pkg.duration_days);
         }
-        appData.subscribers.push({
+        const newSub = {
             id: generateEntityId('s'),
             tenant_id: getActiveTenantId(),
             package_id: packageId,
@@ -3844,14 +4097,72 @@ async function saveSubscriber() {
             email: email,
             phone: phone,
             username: username,
-            password_hash: passwordHash || 'hashed',
+            password_hash: passwordHash,
             status: status,
             expires_at: expiresAt.toISOString(),
             created_at: new Date().toISOString()
+        };
+        appData.subscribers.push(newSub);
+    }
+
+    if (isSupabaseBackend() && window.SupabaseAPI.upsertSubscriber) {
+        const savedSub = id ? getSubscriber(id) : appData.subscribers.find(function (s) {
+            return s.username === username && s.tenant_id === getActiveTenantId();
         });
-        showToast('Subscriber added successfully!', 'success');
+        if (savedSub) {
+            const sync = await window.SupabaseAPI.upsertSubscriber(savedSub, password || null);
+            if (!sync.ok) {
+                if (!id) {
+                    appData.subscribers = appData.subscribers.filter(function (s) { return s.id !== savedSub.id; });
+                }
+                const hint = /Could not find the function|does not exist/i.test(sync.error || '')
+                    ? ' Run the latest supabase/portal.sql in Supabase SQL Editor, then try again.'
+                    : '';
+                showToast('Could not save subscriber for customer portal: ' + (sync.error || 'Unknown error') + hint, 'error');
+                addDashboardLog('Portal sync failed for ' + username + ': ' + (sync.error || 'Unknown error'), 'warning');
+                return;
+            }
+
+            if (sync.tenant_id) {
+                savedSub.tenant_id = sync.tenant_id;
+            }
+            if (sync.slug) {
+                const tenant = getActiveTenant();
+                if (tenant) tenant.slug = sync.slug;
+                if (appData.session) appData.session.tenantSlug = sync.slug;
+            }
+
+            if (password) {
+                const portalCheck = await verifySubscriberPortalLogin(savedSub, password, sync.slug);
+                if (!portalCheck.ok) {
+                    showToast(
+                        'Saved, but portal login test failed. Use ISP code "' + (portalCheck.slug || sync.slug || getActiveTenant().slug || '?') + '" exactly at customer portal. ' + (portalCheck.error || ''),
+                        'warning'
+                    );
+                }
+            }
+        }
+    }
+
+    const tenantSlug = getActiveTenant().slug || '';
+    if (id) {
+        showToast(
+            tenantSlug
+                ? `Subscriber updated! Portal ISP code: "${tenantSlug}", username: "${username}"`
+                : 'Subscriber updated successfully!',
+            'success'
+        );
+        addDashboardLog(`Updated subscriber ${name} (${username})`, 'info');
+    } else {
+        showToast(
+            tenantSlug
+                ? `Subscriber added! Customer portal: ISP code "${tenantSlug}", username "${username}"`
+                : 'Subscriber added successfully!',
+            'success'
+        );
         addDashboardLog(`Added subscriber ${name} on ${pkg.name}`, 'success');
     }
+
     const modal = getSubscriberModal();
     if (modal) modal.hide();
     renderSubscribers();
@@ -5256,6 +5567,12 @@ function renderProductionChecklist() {
 }
 
 function loadSettingsForm() {
+    ensureTenantRecordSynced().then(function () {
+        renderSettingsFormFields();
+    });
+}
+
+function renderSettingsFormFields() {
     const secret = document.getElementById('paystackSecretKey');
     const publicKey = document.getElementById('paystackPublicKey');
     const secretHint = document.getElementById('paystackSecretHint');
@@ -5471,6 +5788,7 @@ async function bootApp() {
     const restored = loadAppState();
     if (restored) {
         applyCurrency(config.currency || 'NGN', { showToast: false, refreshUI: false });
+        applyTenantScopeFromSession();
     }
 
     if (isSupabaseBackend()) {
@@ -5481,7 +5799,11 @@ async function bootApp() {
                 appData.isLoggedIn = true;
                 appData.session = remote.session;
                 window.SupabaseAPI.setActiveTenantId(remote.tenantId);
+                applyTenantScopeFromSession();
                 applyCurrency(config.currency || 'NGN', { showToast: false, refreshUI: false });
+            } else if (appData.isLoggedIn && appData.session && appData.session.tenantId) {
+                applyTenantScopeFromSession();
+                await ensureTenantRecordSynced();
             }
         } catch (err) {
             console.warn('Supabase session restore failed', err);
