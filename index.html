@@ -1369,8 +1369,9 @@
                     </div>
                     <div class="tab-pane fade" id="routerCfgHotspot" role="tabpanel">
                         <div class="row g-3">
-                            <div class="col-md-6"><label class="form-label">Hotspot SSID *</label><input type="text" class="form-control" id="cfgHotspotSsid" /></div>
-                            <div class="col-md-6"><label class="form-label">Captive portal URL</label><input type="url" class="form-control" id="cfgPortalUrl" /></div>
+                            <div class="col-md-4"><label class="form-label">Hotspot SSID *</label><input type="text" class="form-control" id="cfgHotspotSsid" /></div>
+                            <div class="col-md-4"><label class="form-label">Hotspot user profile</label><input type="text" class="form-control" id="cfgHotspotProfile" placeholder="default" /></div>
+                            <div class="col-md-4"><label class="form-label">Captive portal URL</label><input type="url" class="form-control" id="cfgPortalUrl" /></div>
                             <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="cfgRadiusEnabled" /><label class="form-check-label" for="cfgRadiusEnabled">Use RADIUS for subscriber authentication</label></div></div>
                             <div class="col-md-6"><label class="form-label">RADIUS server</label><input type="text" class="form-control" id="cfgRadiusServer" /></div>
                             <div class="col-md-6"><label class="form-label">RADIUS secret</label><input type="password" class="form-control" id="cfgRadiusSecret" autocomplete="off" /></div>
@@ -1402,7 +1403,7 @@
                 <input type="hidden" id="routerEditId" value="" />
                 <div class="mb-3"><label class="form-label">Router Name *</label><input type="text" class="form-control" id="routerName" placeholder="e.g., Main Hotspot" /></div>
                 <div class="mb-3"><label class="form-label">Type *</label><select class="form-select" id="routerType"><option value="mikrotik">MikroTik</option><option value="ruijie">Ruijie</option><option value="omada">TP-Link Omada</option></select></div>
-                <div class="mb-3"><label class="form-label">IP / Host *</label><input type="text" class="form-control" id="routerHost" placeholder="192.168.88.1 or cloud host" /></div>
+                <div class="mb-3"><label class="form-label">IP / Host *</label><input type="text" class="form-control" id="routerHost" placeholder="192.168.88.1" value="" /><small class="text-muted">Default MikroTik LAN IP is 192.168.88.1. Live cloud sync needs a public IP or VPN later; until then ping/sync run in demo mode.</small></div>
                 <div class="mb-0"><label class="form-label">Status</label><select class="form-select" id="routerStatus"><option value="online">Online</option><option value="offline">Offline</option><option value="maintenance">Maintenance</option></select></div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-primary" id="routerSaveBtn">Save Router</button></div>
@@ -2407,6 +2408,81 @@ window.SUPABASE_CONFIG = {
 (function () {
     'use strict';
 
+    function parsePayload(data) {
+        if (!data) return null;
+        if (typeof data === 'string') {
+            try {
+                return JSON.parse(data);
+            } catch (err) {
+                return null;
+            }
+        }
+        return data;
+    }
+
+    function parseInvokeError(error) {
+        if (!error) return 'Edge function call failed';
+        const message = error.message || String(error);
+        if (/Failed to send a request to the Edge Function|Function not found|404/i.test(message)) {
+            return 'router-sync is not deployed. Run: supabase functions deploy router-sync';
+        }
+        return message;
+    }
+
+    async function invoke(action, body) {
+        const sb = window.SupabaseAPI && window.SupabaseAPI.getClient();
+        if (!sb) throw new Error('Supabase is not configured');
+
+        const { data, error } = await sb.functions.invoke('router-sync', {
+            body: Object.assign({ action: action }, body || {})
+        });
+
+        if (error) throw new Error(parseInvokeError(error));
+
+        const payload = parsePayload(data);
+        if (!payload) throw new Error('Empty response from router-sync');
+        if (payload.ok === false) throw new Error(payload.error || 'Router sync failed');
+        return payload;
+    }
+
+    async function ping(routerId) {
+        return invoke('ping', { routerId: routerId });
+    }
+
+    async function syncSubscriber(routerId, subscriberId, password) {
+        return invoke('sync_subscriber', {
+            routerId: routerId,
+            subscriberId: subscriberId,
+            password: password || null
+        });
+    }
+
+    async function syncAll(routerId) {
+        return invoke('sync_all', { routerId: routerId });
+    }
+
+    async function disableSubscriber(routerId, subscriberId) {
+        return invoke('disable_subscriber', {
+            routerId: routerId,
+            subscriberId: subscriberId
+        });
+    }
+
+    window.RouterAPI = {
+        isAvailable: function () {
+            return Boolean(window.SupabaseAPI && window.SupabaseAPI.isEnabled());
+        },
+        invoke: invoke,
+        ping: ping,
+        syncSubscriber: syncSubscriber,
+        syncAll: syncAll,
+        disableSubscriber: disableSubscriber
+    };
+})();
+
+(function () {
+    'use strict';
+
     const STORAGE_KEY = 'richies_isp_billing_v1';
     const PORTAL_SESSION_KEY = 'richies_isp_portal_v1';
 
@@ -2965,6 +3041,7 @@ let config = {
 const DASHBOARD_PAGES = ['dashboard', 'subscribers', 'packages', 'routers', 'payments', 'cron', 'settings'];
 const DEMO_LOGIN = { email: 'demo@ispbilling.com', password: 'demo123' };
 const DASHBOARD_LOG_MAX = 40;
+const DEFAULT_MIKROTIK_HOST = '192.168.88.1';
 const CRON_INTERVAL_MS = 8000;
 const CRON_LOG_MAX = 50;
 const STORAGE_KEY = 'richies_isp_billing_v1';
@@ -3992,6 +4069,21 @@ async function openSubscriberModal(subscriberId = null) {
     modal.show();
 }
 
+async function maybeSyncSubscriberToRouter(savedSub, password) {
+    if (!password || !savedSub?.router_id) return;
+    const router = getRouter(savedSub.router_id);
+    if (!router || router.type !== 'mikrotik') return;
+    ensureRouterConfig(router);
+    if (router.config.auto_sync_subscribers === false) return;
+    if (!window.RouterAPI || !window.RouterAPI.isAvailable()) return;
+    try {
+        const result = await window.RouterAPI.syncSubscriber(savedSub.router_id, savedSub.id, password);
+        addDashboardLog(result.message || `Router: ${savedSub.username} synced`, 'success');
+    } catch (err) {
+        addDashboardLog(`Router sync failed for ${savedSub.username}: ${err?.message || 'error'}`, 'warning');
+    }
+}
+
 async function verifySubscriberPortalLogin(subscriber, password, slugOverride) {
     if (!isSupabaseBackend() || !password || !subscriber) return { ok: true };
     const slug = slugOverride || getActiveTenant().slug;
@@ -4141,6 +4233,8 @@ async function saveSubscriber() {
                     );
                 }
             }
+
+            await maybeSyncSubscriberToRouter(savedSub, password);
         }
     }
 
@@ -4485,17 +4579,45 @@ function syncRouterIdCounter() {
     }
 }
 
+function isPrivateRouterHost(host) {
+    const h = String(host || '').trim().toLowerCase();
+    if (!h || h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local')) return true;
+    const match = h.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+    if (!match) return false;
+    const a = parseInt(match[1], 10);
+    const b = parseInt(match[2], 10);
+    if (a === 10 || a === 127) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    return false;
+}
+
+function canUseLiveRouterSync(router) {
+    if (!router || !window.RouterAPI || !window.RouterAPI.isAvailable()) return false;
+    if (isPrivateRouterHost(router.host)) return false;
+    return true;
+}
+
+function getRouterSyncModeLabel(router) {
+    if (canUseLiveRouterSync(router)) return '';
+    if (window.RouterAPI && window.RouterAPI.isAvailable() && isPrivateRouterHost(router.host)) {
+        return ` (${DEFAULT_MIKROTIK_HOST} saved — demo mode until router is reachable from cloud)`;
+    }
+    return ' (demo mode)';
+}
+
 function resetRouterFormFields() {
     const editIdEl = document.getElementById('routerEditId');
     const nameEl = document.getElementById('routerName');
     const typeEl = document.getElementById('routerType');
     const hostEl = document.getElementById('routerHost');
     const statusEl = document.getElementById('routerStatus');
+    const routerType = config.defaultRouterType || 'mikrotik';
     if (editIdEl) editIdEl.value = '';
     if (nameEl) nameEl.value = '';
-    if (hostEl) hostEl.value = '';
+    if (hostEl) hostEl.value = routerType === 'mikrotik' ? DEFAULT_MIKROTIK_HOST : '';
     if (statusEl) statusEl.value = 'online';
-    if (typeEl) typeEl.value = config.defaultRouterType || 'mikrotik';
+    if (typeEl) typeEl.value = routerType;
 }
 
 function getRouterStatusBadge(status) {
@@ -4660,13 +4782,38 @@ function deleteRouter(id) {
 function pingRouter(id) {
     const r = getRouter(id);
     if (!r) return;
+    if (r.type !== 'mikrotik') {
+        showToast('Only MikroTik ping is implemented right now', 'warning');
+        return;
+    }
+    if (window.RouterAPI && window.RouterAPI.isAvailable() && canUseLiveRouterSync(r)) {
+        showToast(`Pinging ${r.name}…`, 'info');
+        window.RouterAPI.ping(id).then(function (result) {
+            r.status = result.online ? 'online' : 'offline';
+            r.last_seen = new Date().toISOString();
+            r.active_users = result.activeUsers || 0;
+            showToast(result.message || `${r.name} is online`, 'success');
+            addDashboardLog(`Router ping: ${r.name} online (${r.active_users} active)`, 'success');
+            renderRouters();
+            schedulePersistAppState();
+        }).catch(function (err) {
+            r.status = 'offline';
+            r.active_users = 0;
+            r.last_seen = new Date().toISOString();
+            showToast(err?.message || `${r.name} did not respond`, 'error');
+            addDashboardLog(`Router ping failed: ${r.name} — ${err?.message || 'offline'}`, 'warning');
+            renderRouters();
+            schedulePersistAppState();
+        });
+        return;
+    }
     const online = Math.random() > 0.2;
     r.status = online ? 'online' : 'offline';
     r.last_seen = new Date().toISOString();
     if (online) r.active_users = Math.floor(Math.random() * 20);
     else r.active_users = 0;
-    showToast(online ? `${r.name} is reachable` : `${r.name} did not respond`, online ? 'success' : 'error');
-    addDashboardLog(`Router ping: ${r.name} ${online ? 'online' : 'offline'}`, online ? 'success' : 'warning');
+    showToast(online ? `${r.name} is reachable (demo mode)` : `${r.name} did not respond (demo mode)`, online ? 'success' : 'error');
+    addDashboardLog(`Router ping: ${r.name} ${online ? 'online' : 'offline'} (demo)`, online ? 'success' : 'warning');
     renderRouters();
     schedulePersistAppState();
 }
@@ -4711,6 +4858,7 @@ function fillRouterConfigForm(router) {
     document.getElementById('cfgApiUser').value = c.api_username || '';
     document.getElementById('cfgApiPass').value = c.api_password || '';
     document.getElementById('cfgHotspotSsid').value = c.hotspot_ssid || '';
+    document.getElementById('cfgHotspotProfile').value = c.hotspot_profile || 'default';
     document.getElementById('cfgPortalUrl').value = c.captive_portal_url || '';
     document.getElementById('cfgRadiusEnabled').checked = Boolean(c.radius_enabled);
     document.getElementById('cfgRadiusServer').value = c.radius_server || '';
@@ -4743,6 +4891,7 @@ function readRouterConfigForm(router) {
     c.api_username = document.getElementById('cfgApiUser').value.trim();
     c.api_password = document.getElementById('cfgApiPass').value;
     c.hotspot_ssid = document.getElementById('cfgHotspotSsid').value.trim();
+    c.hotspot_profile = document.getElementById('cfgHotspotProfile')?.value.trim() || 'default';
     c.captive_portal_url = document.getElementById('cfgPortalUrl').value.trim();
     c.radius_enabled = document.getElementById('cfgRadiusEnabled').checked;
     c.radius_server = document.getElementById('cfgRadiusServer').value.trim();
@@ -4813,6 +4962,41 @@ function applyRouterConfig(pushSubscribersOnly) {
         return;
     }
     readRouterConfigForm(router);
+    if (router.type !== 'mikrotik') {
+        showToast('Only MikroTik apply/sync is implemented right now', 'warning');
+        return;
+    }
+    if (window.RouterAPI && window.RouterAPI.isAvailable()) {
+        const actionLabel = pushSubscribersOnly ? 'Syncing subscribers' : 'Applying hotspot config';
+        showToast(`${actionLabel} on ${router.name}…`, 'info');
+        const call = pushSubscribersOnly
+            ? window.RouterAPI.syncAll(routerId)
+            : window.RouterAPI.syncAll(routerId);
+        call.then(function (result) {
+            router.config.last_applied_at = new Date().toISOString();
+            router.config_status = 'configured';
+            router.status = 'online';
+            router.last_seen = new Date().toISOString();
+            showToast(result.message || `${actionLabel} complete`, 'success');
+            addDashboardLog(`${actionLabel} → ${router.name}`, 'success');
+            if (Array.isArray(result.results)) {
+                result.results.forEach(function (row) {
+                    if (row.ok) {
+                        addDashboardLog(`  · ${row.username} ${row.action} on ${router.name}`, 'info');
+                    } else if (row.error) {
+                        addDashboardLog(`  · ${row.username} skipped: ${row.error}`, 'warning');
+                    }
+                });
+            }
+            fillRouterConfigForm(router);
+            renderRouters();
+            schedulePersistAppState();
+        }).catch(function (err) {
+            showToast(err?.message || 'Router sync failed', 'error');
+            addDashboardLog(`Router sync failed: ${router.name} — ${err?.message || 'error'}`, 'warning');
+        });
+        return;
+    }
     if (router.status === 'offline') {
         router.config_status = 'pending';
         showToast(`${router.name} is offline. Settings saved; apply when the router is online.`, 'warning');
@@ -4827,8 +5011,8 @@ function applyRouterConfig(pushSubscribersOnly) {
     router.last_seen = new Date().toISOString();
 
     const action = pushSubscribersOnly ? 'Subscriber credentials synced' : 'Hotspot configuration applied';
-    showToast(`${action} on ${router.name} (${syncCount} subscriber${syncCount === 1 ? '' : 's'})`, 'success');
-    addDashboardLog(`${action} → ${router.name} · SSID ${router.config.hotspot_ssid}`, 'success');
+    showToast(`${action} on ${router.name} (${syncCount} subscriber${syncCount === 1 ? '' : 's'}) — demo mode`, 'success');
+    addDashboardLog(`${action} → ${router.name} · SSID ${router.config.hotspot_ssid} (demo)`, 'success');
     assigned.forEach(sub => {
         addDashboardLog(`  · ${sub.username} provisioned on ${router.name}`, 'info');
     });
